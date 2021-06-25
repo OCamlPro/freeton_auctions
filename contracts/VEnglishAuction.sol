@@ -1,8 +1,9 @@
 pragma ton-solidity >=0.44;
 
 import "Constants.sol";
+import "IEnglishAuction.sol";
 
-abstract contract VEnglishAuction is Constants {
+abstract contract VEnglishAuction is Constants, IEnglishAuction {
     
     address static s_owner; // The auction owner
     uint256 s_auction_start; // The start of the auction
@@ -24,7 +25,7 @@ abstract contract VEnglishAuction is Constants {
         best_bidder.set(Bidder(msg.sender, callback_refund, callback_winner, msg.value));
     }
 
-    function bid(uint32 callback_refund, uint32 callback_winner) public {
+    function bid(uint32 callback_refund, uint32 callback_winner) external override {
         tvm.accept();
         if (best_bidder.hasValue()) {
             Bidder b = best_bidder.get();
@@ -47,9 +48,10 @@ abstract contract VEnglishAuction is Constants {
         }
     }
 
-    function endAuction() public{
+    function endAuction() external override {
         tvm.accept();
         if (now - last_bid >= s_max_tick || now - s_auction_start >= s_max_time){
+            // TODO: call callback_winner
             selfdestruct(s_owner);
         } else {
             emit AuctionNotFinished();
