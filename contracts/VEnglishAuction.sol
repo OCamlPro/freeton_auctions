@@ -16,7 +16,8 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
     uint256 last_bid; // The last bid timestamp
 
     constructor() public {
-        tvm.accept ();        
+        tvm.accept ();
+        // TODO: check static variables consistency
     }
 
     function newBidIsBetterThan(uint128 old_bid) virtual internal returns (bool);

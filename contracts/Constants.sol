@@ -11,4 +11,6 @@ contract Constants {
 
     event InvalidBid();
     event AuctionNotFinished();
+
+    uint16 constant E_UNAUTHORIZED = 101;
 }
