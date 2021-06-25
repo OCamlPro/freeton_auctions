@@ -1,6 +1,6 @@
 ---- MODULE dutch_reverse_auction ----
 
-    EXTENDS Integers
+    EXTENDS Integers, std
 
     CONSTANTS 
         starting_price, (* The auction starting price *) 
@@ -14,9 +14,6 @@
         current_price_var (* Useless variable, used for readable cexs *)
 
     vars == <<finished, time, current_price_var>>
-
-    min(i,j) == IF i < j THEN i ELSE j
-    max(i,j) == IF i > j THEN i ELSE j
 
     current_price ==
         IF finished[1]

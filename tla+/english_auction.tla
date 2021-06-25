@@ -6,15 +6,15 @@
         starting_price, (* The auction starting price *) 
         max_tick, (* After max_tick, the auction ends *)
         max_time, (* After max_time, the auction ends *)
-        bidders, (* The number of bidders *)
-        max_bid (* The maximal bid *)
+        bidders, (* The number of bidders (only required for TLA) *)
+        max_bid (* The maximal bid (only required for TLA) *)
 
 
     VARIABLES 
         current_price, (* The current auction price *)
         highest_bidder, (* The highest bidder *)
-        tick, (* The current tick *)
-        time (* The current time *)
+        tick, (* The current tick (only required for TLA) *)
+        time (* The current time (only required for TLA)  *)
 
     vars == <<current_price, highest_bidder, tick, time>>
 
