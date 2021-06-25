@@ -20,14 +20,34 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
         // TODO: check static variables consistency
     }
 
+    // This function will test if a given bid can replace the current one.
+    // The bid is the amount of tons sent to the contract.
+    // Forward: the new bid must be strictly higher than the current one.
+    // Reverse: the new bid must be strictly lower than the current one.
+    //
+    // NB: note that you can encode any rule for this function (for example, 
+    // checking that a new bid is higher than the current bid + a given limit)
+    // but the whole logic of the English Auction is described here.
     function newBidIsBetterThan(uint128 old_bid) virtual internal returns (bool);
 
+    // Sets the bidder of the storage.
+    // For obvious reasons, this function must not be external/public.
     function setBidder(uint32 callback_refund, uint32 callback_winner) internal{
         best_bidder.set(Bidder(msg.sender, callback_refund, callback_winner, msg.value));
     }
 
+    // Checks if the auction is over.
+    // It can either have reached the time limit of the auction or have 
+    // no transaction after some time.  
+    function auctionOver() internal returns (bool) {
+        now - last_bid >= s_max_tick || now - s_auction_start >= s_max_time
+    }
+
+    // Sends a bid.
+    // If it is incorrect, refunds the bidder.
     function bid(uint32 callback_refund, uint32 callback_winner) external override {
         tvm.accept();
+        require (!auctionOver(), E_AUCTION_OVER);
         if (best_bidder.hasValue()) {
             Bidder b = best_bidder.get();
             if (newBidIsBetterThan(b.bid)) {
@@ -44,15 +64,22 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
             if (newBidIsBetterThan(s_starting_price)){
                 setBidder(callback_refund, callback_winner);
             } else {
-               emit InvalidBid(); 
+                emit InvalidBid(); 
             }
         }
     }
 
+    // Once the auction has ended, this function emits the winner
+    // and destroys itself.
+    // TODO: Winner emission from root
     function endAuction() external override {
         tvm.accept();
-        if (now - last_bid >= s_max_tick || now - s_auction_start >= s_max_time){
-            // TODO: call callback_winner
+        if (auctionOver()){
+            if (best_bidder.hasValue()) {
+              Bidder b = best_bidder.get();
+              emit Winner(b.bidder, b.bid);
+              // TODO: call callback_winner
+            }
             selfdestruct(s_owner);
         } else {
             emit AuctionNotFinished();
