@@ -11,7 +11,10 @@ contract Constants {
     event NoWinner();
     event InvalidBid();
     event AuctionNotFinished();
+    event BidCreated(address);
 
     uint16 constant E_UNAUTHORIZED = 101;
     uint16 constant E_AUCTION_OVER = 102;
+    uint16 constant E_UNINITIALIZED_PUBKEY = 103;
+    uint16 constant E_BAD_PUBKEY = 104;
 }
