@@ -8,3 +8,4 @@ contract EnglishAuction is Constants, IEnglishAuction, VEnglishAuction {
     function newBidIsBetterThan(uint128 b) internal override returns (bool){
         return (msg.value > b);
     }
+}

@@ -32,27 +32,29 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
 
     // Sets the bidder of the storage.
     // For obvious reasons, this function must not be external/public.
-    function setBidder(uint32 callback_refund, uint32 callback_winner) internal{
-        best_bidder.set(Bidder(msg.sender, callback_refund, callback_winner, msg.value));
+    function setBidder() internal{
+        best_bidder.set(Bidder(msg.sender, msg.value));
     }
 
     // Checks if the auction is over.
     // It can either have reached the time limit of the auction or have 
     // no transaction after some time.  
-    function auctionOver() internal returns (bool) {
-        now - last_bid >= s_max_tick || now - s_auction_start >= s_max_time
+    function auctionOver() internal view returns (bool) {
+        return (
+            now - last_bid >= s_max_tick || 
+            now - s_auction_start >= s_max_time);
     }
 
     // Sends a bid.
     // If it is incorrect, refunds the bidder.
-    function bid(uint32 callback_refund, uint32 callback_winner) external override {
+    function bid() external override {
         tvm.accept();
         require (!auctionOver(), E_AUCTION_OVER);
         if (best_bidder.hasValue()) {
             Bidder b = best_bidder.get();
             if (newBidIsBetterThan(b.bid)) {
               // New winner
-              setBidder(callback_refund, callback_winner);
+              setBidder();
               // TODO: call bidder refund function
               // currentBestBidder().transfer(b.bid, false, 2, ?)
             } else {
@@ -62,7 +64,7 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
             }
         } else {
             if (newBidIsBetterThan(s_starting_price)){
-                setBidder(callback_refund, callback_winner);
+                setBidder();
             } else {
                 emit InvalidBid(); 
             }

@@ -1,6 +1,7 @@
 pragma ton-solidity >=0.44;
 
-interface IDutchAuction {
-    function bid() external;
+import "IAuction.sol";
+
+interface IDutchAuction is IAuction {
     function endAuction() external;
 }

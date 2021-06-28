@@ -2,6 +2,7 @@ pragma ton-solidity >=0.44;
 
 import "Constants.sol";
 import "IDutchAuction.sol";
+import "IAuction.sol";
 
 // The main contract for the Dutch and Reverse Dutch Auction
 // https://en.wikipedia.org/wiki/Dutch_auction
@@ -35,7 +36,7 @@ abstract contract VDutchAuction is Constants, IDutchAuction {
     function betterPriceThanCurrent(uint128) internal virtual returns(bool);
 
     // A (correct) bid automatically ends the auction.
-    function bid(uint32 winner_callback) external override {
+    function bid() external override {
         tvm.accept ();
         if (betterPriceThanCurrent(msg.value)){
             emit Winner (msg.sender, msg.value);

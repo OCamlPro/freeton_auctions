@@ -1,6 +1,7 @@
 pragma ton-solidity >=0.44;
 
-interface IEnglishAuction {
-    function bid(uint32 callback_refund, uint32 callback_winner) external;
+import "IAuction.sol";
+
+interface IEnglishAuction is IAuction {
     function endAuction() external;
 }
