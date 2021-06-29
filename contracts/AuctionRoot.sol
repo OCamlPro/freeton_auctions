@@ -67,7 +67,7 @@ contract AuctionRoot is Constants{
         DutchAuction c = 
           new DutchAuction
             {
-            value: msg.value - 10,
+            value: 5 ton,
             code: s_dutch_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
@@ -89,7 +89,7 @@ contract AuctionRoot is Constants{
         DutchReverseAuction c = 
           new DutchReverseAuction
             {
-            value: msg.value - 10,
+            value: 5 ton,
             code: s_dutch_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
@@ -111,7 +111,7 @@ contract AuctionRoot is Constants{
         EnglishAuction c = 
           new EnglishAuction
             {
-            value: msg.value - 10,
+            value: 5 ton,
             code: s_english_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
@@ -132,7 +132,7 @@ contract AuctionRoot is Constants{
         EnglishReverseAuction c = 
           new EnglishReverseAuction
             {
-            value: msg.value - 10,
+            value: 5 ton,
             code: s_english_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
