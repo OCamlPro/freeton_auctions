@@ -9,15 +9,58 @@ import "EnglishReverseAuction.sol";
 contract AuctionRoot is Constants{
 
     address static s_owner;
-    TvmCell static s_english_code;
-    TvmCell static s_english_reverse_code;
-    TvmCell static s_dutch_code;
-    TvmCell static s_dutch_reverse_code;
+    optional(TvmCell) s_english_code;
+    optional(TvmCell) s_english_reverse_code;
+    optional(TvmCell) s_dutch_code;
+    optional(TvmCell) s_dutch_reverse_code;
 
     uint256 id;
 
+    int32 constant ID_SET_ENGLISH_CODE = 201;
+    int32 constant ID_SET_ENGLISH_REVERSE_CODE = 202;
+    int32 constant ID_SET_DUTCH_CODE = 203;
+    int32 constant ID_SET_DUTCH_REVERSE_CODE = 204;
+
     constructor() public{
         tvm.accept();
+        id = 0;
+    }
+
+    modifier uninitialized(optional(TvmCell) v){
+        require (!v.hasValue(), E_ALREADY_INITIALIZED);
+        _;
+    }
+
+    function setEnglishCode(TvmCell e) external uninitialized(s_english_code){
+        tvm.accept();
+        s_english_code = e;
+        emit Ok();
+    }
+
+    function setEnglishReverseCode(TvmCell e) external uninitialized(s_english_reverse_code){
+        tvm.accept();
+        s_english_reverse_code = e;
+        emit Ok();
+    }
+
+    function setDutchCode(TvmCell e) external uninitialized(s_dutch_code){
+        tvm.accept();
+        s_dutch_code = e;
+        emit Ok();
+    }
+
+    function setDutchReverseCode(TvmCell e) external uninitialized(s_dutch_reverse_code){
+        tvm.accept();
+        s_dutch_reverse_code = e;
+        emit Ok();
+    }
+
+    function init(address ec, address erc, address dc, address drc) pure external{
+        tvm.accept();
+        EnglishAuction(ec).thisIsMyCode{value:1 ton, callback: this.setEnglishCode}();
+        EnglishReverseAuction(erc).thisIsMyCode{value:1 ton, callback: this.setEnglishReverseCode}();
+        DutchAuction(dc).thisIsMyCode{value:1 ton, callback: this.setDutchCode}();
+        DutchReverseAuction(drc).thisIsMyCode{value:1 ton, callback: this.setDutchReverseCode}();
     }
 
     function deployDutchAuction(uint128 start_price, uint128 end_price, uint128 price_delta, uint256 time_delta) external{
@@ -25,7 +68,7 @@ contract AuctionRoot is Constants{
           new DutchAuction
             {
             value: msg.value - 10,
-            code: s_dutch_code,
+            code: s_dutch_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {
@@ -47,7 +90,7 @@ contract AuctionRoot is Constants{
           new DutchReverseAuction
             {
             value: msg.value - 10,
-            code: s_dutch_reverse_code,
+            code: s_dutch_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {
@@ -69,7 +112,7 @@ contract AuctionRoot is Constants{
           new EnglishAuction
             {
             value: msg.value - 10,
-            code: s_english_code,
+            code: s_english_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {
@@ -90,7 +133,7 @@ contract AuctionRoot is Constants{
           new EnglishReverseAuction
             {
             value: msg.value - 10,
-            code: s_english_reverse_code,
+            code: s_english_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {

@@ -57,4 +57,9 @@ abstract contract VDutchAuction is Constants, IDutchAuction {
             selfdestruct(s_owner);
         }
     }
+
+    function thisIsMyCode() external override responsible returns(TvmCell) {
+        tvm.accept();
+        return {value: 1 ton} tvm.code();
+    }
 }

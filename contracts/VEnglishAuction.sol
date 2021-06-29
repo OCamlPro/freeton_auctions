@@ -89,7 +89,9 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
         }
     }
 
-
-
+    function thisIsMyCode() external override responsible returns(TvmCell) {
+        tvm.accept();
+        return {value: 1 ton} tvm.code();
+    }
 
 }
