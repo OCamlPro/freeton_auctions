@@ -8,12 +8,13 @@ import "IAuction.sol";
 // https://en.wikipedia.org/wiki/Dutch_auction
 
 abstract contract VDutchAuction is Constants, IDutchAuction {
-    address s_owner; // The owner of the auction
-    uint128 s_starting_price; // The starting price
-    uint256 s_starting_time; // The starting time
-    uint128 s_limit_price; // The limit price
-    uint128 s_price_delta; // The price decrement over time
-    uint256 s_time_delta; // The time after which the time 
+    address static s_owner; // The owner of the auction
+    uint128 static s_starting_price; // The starting price
+    uint256 static s_starting_time; // The starting time
+    uint128 static s_limit_price; // The limit price
+    uint128 static s_price_delta; // The price decrement over time
+    uint256 static s_time_delta; // The time after which the time
+    uint256 static s_id;
 
     constructor() public{
         tvm.accept();

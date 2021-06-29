@@ -6,10 +6,11 @@ import "IEnglishAuction.sol";
 abstract contract VEnglishAuction is Constants, IEnglishAuction {
     
     address static s_owner; // The auction owner
-    uint256 s_auction_start; // The start of the auction
+    uint256 static s_auction_start; // The start of the auction
     uint128 static s_starting_price; // The auction starting price
     uint256 static s_max_tick; // After s_max_tick time without any new message, aution ends
     uint256 static s_max_time; // After s_max_time from the auction start, auction ends
+    uint256 static s_id; // Unique ID of the auction
 
     optional(Bidder) best_bidder; // The best bidder
     
