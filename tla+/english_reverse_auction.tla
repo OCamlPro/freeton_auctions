@@ -1,25 +1,23 @@
 ---- MODULE english_reverse_auction ----
 
-    EXTENDS Integers
+    EXTENDS Integers, std
 
     CONSTANTS 
         starting_price, (* The auction starting price *) 
         max_tick, (* After max_tick, the auction ends *)
         max_time, (* After max_time, the auction ends *)
-        sellers (* The number of sellers *)
+        num_bidders (* The number of bidders (only for TLA+) *)
 
 
-    VARIABLES 
-        current_price, (* The current auction price *)
-        lowest_seller, (* The lowest seller *)
-        tick, (* The current tick *)
-        time (* The current time *)
+    VARIABLES
+        highest_bidder, (* The highest bidder *)
+        tick, (* The current tick (only required for TLA) *)
+        time (* The current time (only required for TLA)  *)
 
-    vars == <<current_price, lowest_seller, tick, time>>
+    vars == <<highest_bidder, tick, time>>
 
     Init == 
-        /\ current_price = starting_price
-        /\ lowest_seller = 0 (* Not a real bidder *)
+        /\ highest_bidder = auction!unsafe_bid(0, starting_price)
         /\ tick = 0
         /\ time = 0
 
@@ -27,21 +25,21 @@
     
     time_passes == time' = time + 1
 
-    bid(seller, price) ==
-        /\ (price < current_price) 
-        /\ current_price' = price
-        /\ lowest_seller' = seller
+    bid(bidder, price) ==
+        /\ (price < auction!amount(highest_bidder))
+        /\ highest_bidder' = auction!bid(bidder, price)
         /\ tick' = 0
 
+    bidders == auction!bidder_set(num_bidders)
+
     can_bid ==
-        \E b \in 1..sellers:
-        \E p \in 1..starting_price:
+        \E b \in bidders:
+        \E p \in 0..starting_price:
             bid(b,p)
 
     no_bid == 
         /\ tick' = tick + 1
-        /\ UNCHANGED <<current_price, lowest_seller>>
-
+        /\ UNCHANGED <<highest_bidder>>
 
     Next == 
         IF time_has_passed
@@ -50,14 +48,12 @@
              /\ \/ no_bid
                 \/ can_bid
 
-    
     (* Invariants *)
     type_check ==
         /\ tick \in 0..max_tick
         /\ time \in 0..max_time
-        /\ lowest_seller \in 0..sellers
-        /\ current_price \in 0..starting_price
+        /\ auction!bidder(highest_bidder) \in {0} \union bidders
+        /\ auction!amount(highest_bidder) \in 0..starting_price
 
-    never_lower == current_price' >= current_price
-
+    never_lower == auction!amount(highest_bidder') <= auction!amount(highest_bidder)
 ====

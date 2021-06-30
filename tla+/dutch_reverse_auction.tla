@@ -5,31 +5,31 @@
     CONSTANTS 
         starting_price, (* The auction starting price *) 
         limit_price, (* The minimal price the seller will accept *)
-        price_delta, (* The price decrement for each tick*)
+        price_delta, (* The price increment for each tick*)
         time_delta
 
     VARIABLES 
-        finished, (* TRUE,buy_value if the object has a buyer  *)
+        winner, (* The winner *)
         time, (* time *)
         current_price_var (* Useless variable, used for readable cexs *)
 
-    vars == <<finished, time, current_price_var>>
+    vars == <<winner, time, current_price_var>>
 
     current_price ==
-        IF finished[1]
-        THEN finished[2]
+        IF auction!has_a_winner(winner)
+        THEN auction!amount(winner)
         ELSE
           LET delta == time \div time_delta IN
           min(starting_price + delta * price_delta, limit_price)
 
     Init == 
         /\ starting_price < limit_price
-        /\ finished = <<FALSE,0>>
+        /\ winner = auction!no_winner
         /\ time = 0
         /\ current_price_var = starting_price
 
     time_has_passed == 
-        \/ finished[1]
+        \/ auction!has_a_winner(winner)
         \/ (
             /\ current_price = limit_price
             /\ (time + 1) % time_delta = 0
@@ -38,11 +38,11 @@
     time_passes == time' = time + 1
 
     bid == 
-        /\ finished'= <<TRUE, current_price>>
+        /\ winner'= auction!bid(1, current_price)
         /\ UNCHANGED current_price_var
     
     no_bid == 
-        /\ UNCHANGED finished
+        /\ UNCHANGED winner
         /\ IF (time' % time_delta = 0)
            THEN 
              current_price_var' = 
@@ -58,9 +58,7 @@
                 \/ bid
 
     type_check ==
-        /\ finished[1] \in {TRUE,FALSE}
-        /\ finished[2] \in Int
-        /\ current_price_var = current_price
+        current_price_var = current_price
     
-    test == <>(finished[1])
+    test == <>(auction!has_a_winner(winner))
 ====

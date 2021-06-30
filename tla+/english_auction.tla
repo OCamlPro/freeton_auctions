@@ -1,26 +1,24 @@
 ---- MODULE english_auction ----
 
-    EXTENDS Integers
+    EXTENDS Integers, std
 
     CONSTANTS 
         starting_price, (* The auction starting price *) 
         max_tick, (* After max_tick, the auction ends *)
         max_time, (* After max_time, the auction ends *)
-        bidders, (* The number of bidders (only required for TLA) *)
+        num_bidders, (* The number of bidders (only required for TLA) *)
         max_bid (* The maximal bid (only required for TLA) *)
 
 
-    VARIABLES 
-        current_price, (* The current auction price *)
+    VARIABLES
         highest_bidder, (* The highest bidder *)
         tick, (* The current tick (only required for TLA) *)
         time (* The current time (only required for TLA)  *)
 
-    vars == <<current_price, highest_bidder, tick, time>>
+    vars == <<highest_bidder, tick, time>>
 
     Init == 
-        /\ current_price = starting_price
-        /\ highest_bidder = 0 (* Not a real bidder *)
+        /\ highest_bidder = auction!unsafe_bid(0, starting_price)
         /\ tick = 0
         /\ time = 0
 
@@ -29,20 +27,20 @@
     time_passes == time' = time + 1
 
     bid(bidder, price) ==
-        /\ (price > current_price) 
-        /\ current_price' = price
-        /\ highest_bidder' = bidder
+        /\ (price > auction!amount(highest_bidder))
+        /\ highest_bidder' = auction!bid(bidder, price)
         /\ tick' = 0
 
+    bidders == auction!bidder_set(num_bidders)
+
     can_bid ==
-        \E b \in 1..bidders:
+        \E b \in bidders:
         \E p \in 1..max_bid:
             bid(b,p)
 
     no_bid == 
         /\ tick' = tick + 1
-        /\ UNCHANGED <<current_price, highest_bidder>>
-
+        /\ UNCHANGED <<highest_bidder>>
 
     Next == 
         IF time_has_passed
@@ -51,14 +49,12 @@
              /\ \/ no_bid
                 \/ can_bid
 
-    
     (* Invariants *)
     type_check ==
         /\ tick \in 0..max_tick
         /\ time \in 0..max_time
-        /\ highest_bidder \in 0..bidders
-        /\ current_price \in starting_price..(starting_price + time * max_bid)
+        /\ auction!bidder(highest_bidder) \in {0} \union bidders
+        /\ auction!amount(highest_bidder) \in starting_price..(starting_price + time * max_bid)
 
-    never_lower == current_price' >= current_price
-
+    never_lower == auction!amount(highest_bidder') >= auction!amount(highest_bidder)
 ====

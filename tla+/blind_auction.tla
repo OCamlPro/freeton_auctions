@@ -7,7 +7,7 @@
         max_time_reveal, (* The max time bidders can reveal *)
         max_time_pay, (* The max time a winner has to pay.
                          If he misses it, he loses the auction. *)
-        bidders, (* The set of bidders (only required for TLA+) *)
+        num_bidders, (* The set of bidders (only required for TLA+) *)
         max_bid (* The maximal bid (only required for TLA+) *)
 
     VARIABLES 
@@ -23,26 +23,26 @@
         /\ time = 0
         /\ hidden_bids = {}
         /\ valid_bids = <<>>
-        /\ winner = <<0,0>>
+        /\ winner = auction!no_winner
         /\ curr_state = "Init"
 
     (* Adds a bid, in a sorted way *)
     add_valid(b) ==
         IF Len(valid_bids) = 0 
         THEN valid_bids' = <<b>>
-        ELSE IF valid_bids[1][2] > b[2]
+        ELSE IF auction!amount(valid_bids[1]) > auction!amount(b)
         THEN valid_bids' = <<b>> \o valid_bids
         ELSE
         \E i \in DOMAIN(valid_bids):
         \A j \in 1..i:
-        /\ valid_bids[j][2] > b[2]
+        /\ auction!amount(valid_bids[j]) > auction!amount(b)
         /\ valid_bids'[j] = valid_bids[j]
         /\ valid_bids'[i+1] = b
         /\ \A k \in (i+1)..Len(valid_bids):
-            /\ valid_bids[k][2] <= b[2]
+            /\ auction!amount(valid_bids[k]) <= auction!amount(b)
             /\ valid_bids'[k+1] = valid_bids[k]
     
-    bidder_set == 1 .. bidders
+    bidders == auction!bidder_set(num_bidders)
 
     reveal_time == 
         /\ time >= max_time_bid 
@@ -52,43 +52,44 @@
         /\ time >=
             max_time_bid + 
             max_time_reveal
-        /\ winner = <<0,0>>
+        /\ auction!has_no_winner(winner)
 
     time_has_passed ==
         \/ /\ time >=
                max_time_bid + 
                max_time_reveal
            /\ valid_bids = <<>>
-        \/ ~(winner = <<0,0>>) 
+        \/ auction!has_a_winner(winner) 
     
     bidding(bidder, bid) == 
-        hidden_bids' = hidden_bids \union {Hash(<<bidder, bid>>)}
+        hidden_bids' = hidden_bids \union {Hash(auction!bid(bidder, bid))}
     
     bid == 
         /\ UNCHANGED <<winner, valid_bids>> 
-        /\ \E bidder \in bidder_set: 
+        /\ \E bidder \in bidders: 
            \E bid \in 0..max_bid :
               bidding(bidder, Hash(bid))
 
     revealing(bidder, val) == 
         \E b \in hidden_bids:
-        /\ b = Hash(<<bidder, val>>)
+        LET revealed == auction!bid(bidder, val) IN 
+        /\ b = Hash(revealed)
         /\ hidden_bids' = hidden_bids \ {b}
-        /\ add_valid(<<bidder, val>>)
+        /\ add_valid(revealed)
         /\ UNCHANGED winner
 
     reveal ==
-        \E bidder \in bidder_set:
+        \E bidder \in bidders:
         \E val \in 0..max_bid:
         revealing(bidder, val)
 
     claiming(bidder) == 
-        /\ bidder = valid_bids[1][1] 
+        /\ bidder = auction!bidder(valid_bids[1]) 
         /\ winner' = valid_bids[1]
         /\ valid_bids' = <<>>
         /\ UNCHANGED hidden_bids
     
-    claim == \E b \in bidder_set: claiming(b)
+    claim == \E b \in bidders: claiming(b)
 
     no_action == UNCHANGED <<hidden_bids, winner, valid_bids>>
 
@@ -121,5 +122,5 @@
                  /\ \/ bid
                     \/ no_action
 
-    prop == <>(valid_bids = <<<<1,1>>>>)
+    prop == <>(valid_bids = auction!bid(1,1))
 ====
