@@ -16,6 +16,8 @@ abstract contract VDutchAuction is Constants, IDutchAuction {
     uint256 static s_time_delta; // The time after which the time
     uint256 static s_id;
 
+    address static s_processor; // The Winner processor
+
     constructor() public{
         tvm.accept();
     }
@@ -37,15 +39,20 @@ abstract contract VDutchAuction is Constants, IDutchAuction {
     function betterPriceThanCurrent(uint128) internal virtual returns(bool);
 
     // A (correct) bid automatically ends the auction.
-    function bid() external override {
+    function receiveBid(uint128 commitment) external override fromBidBuilder {
         tvm.accept ();
-        if (betterPriceThanCurrent(msg.value)){
-            emit Winner (msg.sender, msg.value);
-            // TODO: call winner_callback function
-            selfdestruct(s_owner);
+        if (betterPriceThanCurrent(commitment)){
+            emit Winner (msg.sender, commitment);
+            IProcessWinner(s_processor).acknowledgeWinner{/* TODO */}(msg.sender, commitment);
         } else {
             emit InvalidBid();
+            // Todo: cleaner fail
+            IBid(msg.sender).transferToOwner{/* TODO */}();
         }
+    }
+
+    function bid(uint128 amount) {
+        BidBuilder(s_bid_builder_address).deployBid{value: 1 ton}(address(this), amount);
     }
     
     // If no bid has been done and the limit price is the best price,

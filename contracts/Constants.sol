@@ -13,6 +13,8 @@ contract Constants {
     event AuctionNotFinished();
     event BidCreated(address);
     event AuctionCreated(address);
+    event BidPubkey(address auction, uint256 bid_id, uint256 bid_pubkey);
+    event ThisIsYourBid(address auction, uint256 bid_id, address bid);
     event Ok();
 
     uint16 constant E_UNAUTHORIZED = 101;
@@ -20,4 +22,5 @@ contract Constants {
     uint16 constant E_UNINITIALIZED_PUBKEY = 103;
     uint16 constant E_BAD_PUBKEY = 104;
     uint16 constant E_ALREADY_INITIALIZED = 105;
+    uint16 constant E_INVALID_BID = 106;
 }

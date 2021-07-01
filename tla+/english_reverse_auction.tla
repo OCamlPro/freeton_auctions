@@ -38,10 +38,10 @@
             bid(b,p)
 
     no_bid == 
-        /\ tick' = tick + 1
+        /\ tick' = tick + 1 (* TODO Don't do if no bidder *)
         /\ UNCHANGED <<highest_bidder>>
 
-    Next == 
+    Next ==
         IF time_has_passed
         THEN UNCHANGED vars 
         ELSE /\ time_passes
