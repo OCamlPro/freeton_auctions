@@ -42,6 +42,7 @@ contract Bid is Constants, Buildable {
 
     // Starts the check vault process
     // Will request the wallet address
+    // Can be started by anyone
     function checkVault() external view {
         IRootWallet(s_root_wallet).getWalletAddress
         {
@@ -63,9 +64,19 @@ contract Bid is Constants, Buildable {
     function checkVaultContent(uint256 amount) external view onlyFrom(wallet_address.get()){
         // Warning: modifier may fail if wallet_address not set by checkVaultAddr
         require(amount >= s_commitment, E_INVALID_BID);
-        IAuction(s_auction).submit{value: 1 ton}(s_commitment);
+        uint128 grams = 10000;
+        IVault(wallet_address.get()).
+            transfer{value: 1 ton}(s_bidder, amount - s_commitment, grams);
+        IAuction(s_auction).validateBid{value: 1 ton}(s_bidder, s_commitment);
     }
 
+    function transferVaultContent(address dest) public view onlyFrom(s_auction){
+        uint128 grams = 10000;
+        IVault(wallet_address.get()).transfer(dest, s_commitment, grams);
+    }
 
+    function transferVaultContentToOwner() external view onlyFrom(s_auction){
+        transferVaultContent(s_bidder);
+    }
 
 }

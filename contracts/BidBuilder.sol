@@ -3,11 +3,11 @@ pragma ton-solidity >=0.44;
 import "Bid.sol";
 import "Constants.sol";
 import "Buildable.sol";
+import "IBidBuilder.sol";
 
-contract BidBuilder is Constants, Buildable {
+contract BidBuilder is Constants, Buildable, IBidBuilder {
 
     optional(TvmCell) s_bid_code; // Code of the bid contract
-    address static s_vault_wallet; // Escrow vault
     address static s_root_wallet; // Wallet root
     uint256 id; // Id for the created bids
 
@@ -27,14 +27,14 @@ contract BidBuilder is Constants, Buildable {
         emit Ok();
     }
 
-    function init(address bid) pure external{
+    function init(address bid) override external{
         tvm.accept();
         Bid(bid).thisIsMyCode{value: 1 ton, callback:this.setCode}();
     }
 
     // For English/Dutch auctions, commitment = amount
     // For Blind auction, commitment = hash
-    function deployBid(address auction, uint256 commitment) external{
+    function deployBid(address auction, uint256 commitment) override external{
         tvm.accept();
         Bid b =
             new Bid

@@ -4,10 +4,11 @@ contract Constants {
     
     struct Bidder{
         address bidder; // The bidder
-        uint128 bid;
+        uint256 bid;
+        address bid_contract;
     }
 
-    event Winner(address, uint128);
+    event Winner(address, uint256);
     event NoWinner();
     event InvalidBid();
     event AuctionNotFinished();
@@ -23,4 +24,5 @@ contract Constants {
     uint16 constant E_BAD_PUBKEY = 104;
     uint16 constant E_ALREADY_INITIALIZED = 105;
     uint16 constant E_INVALID_BID = 106;
+    uint16 constant E_AUCTION_NOT_OVER = 107;
 }

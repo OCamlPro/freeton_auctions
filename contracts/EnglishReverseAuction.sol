@@ -5,7 +5,7 @@ import "Constants.sol";
 import "IEnglishAuction.sol";
 
 contract EnglishReverseAuction is Constants, IEnglishAuction, VEnglishAuction {
-    function newBidIsBetterThan(uint128 b) internal override returns (bool){
-        return (msg.value < b);
+    function newBidIsBetterThan(uint256 old_bid, uint256 new_bid) internal override returns (bool){
+        return (new_bid < old_bid);
     }
 }
