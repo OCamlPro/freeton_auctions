@@ -1,11 +1,12 @@
 pragma ton-solidity >=0.44;
 
-contract Constants {
-    
+interface IConstants{
+
     struct Bidder{
         address bidder; // The bidder
         uint256 bid;
         address bid_contract;
+        address bid_vault;
     }
 
     event Winner(address, uint256);
@@ -17,6 +18,11 @@ contract Constants {
     event BidPubkey(address auction, uint256 bid_id, uint256 bid_pubkey);
     event ThisIsYourBid(address auction, uint256 bid_id, address bid);
     event Ok();
+
+}
+
+contract Constants is IConstants {
+    
 
     uint16 constant E_UNAUTHORIZED = 101;
     uint16 constant E_AUCTION_OVER = 102;

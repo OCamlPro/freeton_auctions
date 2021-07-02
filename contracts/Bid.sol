@@ -24,8 +24,8 @@ contract Bid is Constants, Buildable {
     // Root wallet
     address static s_root_wallet;
 
-    // The wallet address.
-    optional(address) wallet_address;
+    // The vault address.
+    optional(address) vault_address;
 
     // TODO: take into account everything may fail for an unknown reason :
     // After the end of the auction, send back any unused fund?
@@ -53,7 +53,7 @@ contract Bid is Constants, Buildable {
 
     // Requests the balance of the vault address
     function checkVaultAddr(address a) external onlyFrom(s_root_wallet){
-        wallet_address.set(a);
+        vault_address.set(a);
         IVault(a).getBalance{
             value: 1 ton,
             callback: this.checkVaultContent
@@ -61,22 +61,25 @@ contract Bid is Constants, Buildable {
     }
 
     // Checks the amount in the wallet is bigger than the commitment
-    function checkVaultContent(uint256 amount) external view onlyFrom(wallet_address.get()){
+    function checkVaultContent(uint256 amount) external view onlyFrom(vault_address.get()){
         // Warning: modifier may fail if wallet_address not set by checkVaultAddr
         require(amount >= s_commitment, E_INVALID_BID);
-        uint128 grams = 10000;
-        IVault(wallet_address.get()).
-            transfer{value: 1 ton}(s_bidder, amount - s_commitment, grams);
-        IAuction(s_auction).validateBid{value: 1 ton}(s_bidder, s_commitment);
+        
+       /* uint128 grams = 10000;
+         IVault(vault_address.get()).
+            transfer{value: 1 ton}(s_bidder, amount - s_commitment, grams);*/
+        IAuction(s_auction).validateBid{value: 1 ton}(s_bidder, vault_address.get(), s_commitment);
     }
 
+/*
     function transferVaultContent(address dest) public view onlyFrom(s_auction){
         uint128 grams = 10000;
-        IVault(wallet_address.get()).transfer(dest, s_commitment, grams);
+        IVault(vault_address.get()).transfer(dest, s_commitment, grams);
     }
 
     function transferVaultContentToOwner() external view onlyFrom(s_auction){
         transferVaultContent(s_bidder);
     }
+*/
 
 }

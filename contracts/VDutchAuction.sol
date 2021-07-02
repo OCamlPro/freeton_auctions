@@ -48,12 +48,13 @@ abstract contract VDutchAuction is Constants, Buildable, IDutchAuction {
     }
 
     // A (correct) bid automatically ends the auction.
-    function validateBid(address winner, uint256 commitment) external override {
+    function validateBid(address winner, address winner_vault, uint256 commitment) external override {
         // TODO: only from a Bid contract !
         tvm.accept ();
-        emit Winner (winner, commitment);
-        IProcessWinner(s_winner_processor_address).acknowledgeWinner{value: 1 ton}(msg.sender, commitment);
-        selfdestruct(s_owner);
+        Bidder auction_winner =
+            Bidder(winner, commitment, msg.sender, winner_vault);
+        IProcessWinner(s_winner_processor_address).
+            acknowledgeWinner{value: 1 ton}(auction_winner);
     }
 
     function bid(uint256 commitment) external override {

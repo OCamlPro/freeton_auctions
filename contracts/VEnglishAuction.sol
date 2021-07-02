@@ -49,13 +49,19 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
             now - s_auction_start >= s_max_time);
     }
 
-    function validateBid(address bidder, uint256 commitment) external override {
+    function validateBid
+        (
+            address bidder, 
+            address bidder_vault, 
+            uint256 commitment
+        ) external override {
         // TODO: only from a Bid contract !
         tvm.accept();
         require (!auctionOver(), E_AUCTION_OVER);
         uint256 current_price;
- 
-        if (best_bidder.hasValue()) {
+        bool already_has_a_bidder = best_bidder.hasValue();
+
+        if (already_has_a_bidder) {
             current_price = best_bidder.get().bid;
         } else {
             current_price = s_starting_price;
@@ -63,8 +69,14 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
 
         if (newBidIsBetterThan(current_price, commitment)) {
             // msg.sender is the Bid contract
-            Bidder new_bidder = Bidder (bidder, commitment, msg.sender); 
+            if (already_has_a_bidder){
+                Bidder old = best_bidder.get();
+                IProcessWinner(s_winner_processor_address).
+                    acknowledgeLoser{value: 1 ton}(old);
+            }
+            Bidder new_bidder = Bidder (bidder, commitment, msg.sender, bidder_vault);
             best_bidder.set(new_bidder);
+
         } else {
             emit InvalidBid();
             require(false, E_INVALID_BID);
@@ -86,7 +98,7 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
 
         if (newBidIsBetterThan(current_price, commitment)) {    
             IBidBuilder(s_bid_builder_address).
-            deployBid{value: 1 ton}(address(this), commitment);
+                deployBid{value: 1 ton}(address(this), commitment);
         } else {
             emit InvalidBid();
             require(false, E_INVALID_BID);
@@ -103,10 +115,10 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
                 Bidder b = best_bidder.get();
                 emit Winner(b.bidder, b.bid);
                 IProcessWinner(s_winner_processor_address).
-                acknowledgeWinner{value: 1 ton}(b.bidder, b.bid);
+                    acknowledgeWinner{value: 1 ton}(b);
             } else {
                 IProcessWinner(s_winner_processor_address).
-                acknowledgeNoWinner{value: 1 ton}();
+                    acknowledgeNoWinner{value: 1 ton}();
             }
             selfdestruct(s_owner);
         } else {

@@ -1,6 +1,9 @@
 pragma ton-solidity >=0.44;
 
-interface IProcessWinner{
-    function acknowledgeWinner(address, uint256) external;
+import "Constants.sol";
+
+interface IProcessWinner is IConstants{
+    function acknowledgeWinner(Bidder) external;
+    function acknowledgeLoser(Bidder) external;
     function acknowledgeNoWinner() external;
 }
