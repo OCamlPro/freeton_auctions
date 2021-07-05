@@ -11,6 +11,7 @@ interface IConstants{
 
     event Winner(address, uint256);
     event NoWinner();
+    event Loser(address, uint256);
     event InvalidBid();
     event AuctionNotFinished();
     event BidCreated(address);

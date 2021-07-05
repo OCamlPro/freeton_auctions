@@ -11,11 +11,6 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
     address static s_root_wallet; // Wallet root
     uint256 id; // Id for the created bids
 
-    constructor() public{
-        tvm.accept();
-        id = 0;
-    }
-
     modifier uninitialized(optional(TvmCell) v){
         require (!v.hasValue(), E_ALREADY_INITIALIZED);
         _;
@@ -27,22 +22,27 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
         emit Ok();
     }
 
-    function init(address bid) override external{
+    function init(address bid_address) override external{
         tvm.accept();
-        Bid(bid).thisIsMyCode{value: 1 ton, callback:this.setCode}();
+        IBuildable(bid_address).thisIsMyCode{value:0.5 ton, callback:this.setCode}();
+    }
+
+    constructor() public{
+        tvm.accept();
+        id = 0;
     }
 
     // For English/Dutch auctions, commitment = amount
-    // For Blind auction, commitment = hash
     function deployBid(address auction, uint256 commitment) override external{
         tvm.accept();
         Bid b =
             new Bid
             {
-            value: 5 ton,
-            code: s_bid_code.get(),
-            pubkey: msg.pubkey(),
-            varInit: 
+                value:0,
+                flag: 128,
+                code: s_bid_code.get(),
+                pubkey: msg.pubkey(),
+                varInit: 
                 {
                     s_auction: auction,
                     s_bidder: msg.sender,

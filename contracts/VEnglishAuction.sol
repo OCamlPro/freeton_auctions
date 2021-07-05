@@ -72,7 +72,7 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
             if (already_has_a_bidder){
                 Bidder old = best_bidder.get();
                 IProcessWinner(s_winner_processor_address).
-                    acknowledgeLoser{value: 1 ton}(old);
+                    acknowledgeLoser{value:0, flag: 128}(old);
             }
             Bidder new_bidder = Bidder (bidder, commitment, msg.sender, bidder_vault);
             best_bidder.set(new_bidder);
@@ -98,7 +98,7 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
 
         if (newBidIsBetterThan(current_price, commitment)) {    
             IBidBuilder(s_bid_builder_address).
-                deployBid{value: 1 ton}(address(this), commitment);
+                deployBid{value:0, flag: 128}(address(this), commitment);
         } else {
             emit InvalidBid();
             require(false, E_INVALID_BID);
@@ -115,10 +115,10 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
                 Bidder b = best_bidder.get();
                 emit Winner(b.bidder, b.bid);
                 IProcessWinner(s_winner_processor_address).
-                    acknowledgeWinner{value: 1 ton}(b);
+                    acknowledgeWinner{value:0, flag: 128}(b);
             } else {
                 IProcessWinner(s_winner_processor_address).
-                    acknowledgeNoWinner{value: 1 ton}();
+                    acknowledgeNoWinner{value:0, flag: 128}();
             }
             selfdestruct(s_owner);
         } else {

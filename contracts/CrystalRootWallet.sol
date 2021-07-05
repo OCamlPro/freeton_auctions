@@ -12,6 +12,6 @@ contract CrystalRootWallet is IRootWallet{
             int8 workchainId, 
             uint256 pubkey
         ) external override responsible returns(address){
-        return address.makeAddrStd(workchainId, pubkey);
+        return {value:0, flag: 128} address.makeAddrStd(workchainId, pubkey);
     }
 }

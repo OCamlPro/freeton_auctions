@@ -14,14 +14,14 @@ contract CrystalProcessWinner is IProcessWinner, Constants{
 
     function acknowledgeWinner ( Bidder b ) external override {
         tvm.accept();
-        IVault(b.bid_vault).transfer(s_seller, b.amount, 100000);
+        IVault(b.bid_vault).transfer{value:0, flag: 128}(s_seller, b.bid, 100000);
         emit Winner(b.bidder, b.bid);
     }
 
     function acknowledgeLoser ( Bidder b ) external override {
         tvm.accept();
-        IVault(b.bid_vault).transfer(b.bidder, b.amount, 100000);
-        emit Loser(b.bidder, b.amount);
+        IVault(b.bid_vault).transfer{value:0, flag: 128}(b.bidder, b.bid, 100000);
+        emit Loser(b.bidder, b.bid);
     }
 
 

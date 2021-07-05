@@ -5,6 +5,6 @@ import "IBuildable.sol";
 contract Buildable is IBuildable {
     function thisIsMyCode() external override responsible returns(TvmCell){
         tvm.accept();
-        return tvm.code();
+        return {flag: 128} tvm.code();
     }
 }

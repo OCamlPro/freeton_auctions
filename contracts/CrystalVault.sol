@@ -28,7 +28,7 @@ contract CrystalVault is IVault, Constants{
     }
 
     function getBalance() responsible external override returns(uint256){
-        return address(this).balance;
+        return {value:0, flag: 128} address(this).balance;
     }
 
 }

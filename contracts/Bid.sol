@@ -44,9 +44,9 @@ contract Bid is Constants, Buildable {
     // Will request the wallet address
     // Can be started by anyone
     function checkVault() external view {
-        IRootWallet(s_root_wallet).getWalletAddress
-        {
-            value:1 ton,
+        IRootWallet(s_root_wallet).getWalletAddress {
+            value: 0,
+            flag: 128,
             callback:this.checkVaultAddr
         }(0,tvm.pubkey());
     }
@@ -54,8 +54,9 @@ contract Bid is Constants, Buildable {
     // Requests the balance of the vault address
     function checkVaultAddr(address a) external onlyFrom(s_root_wallet){
         vault_address.set(a);
-        IVault(a).getBalance{
-            value: 1 ton,
+        IVault(a).getBalance {
+            value: 0,
+            flag: 128,
             callback: this.checkVaultContent
         }();
     }
@@ -68,7 +69,11 @@ contract Bid is Constants, Buildable {
        /* uint128 grams = 10000;
          IVault(vault_address.get()).
             transfer{value: 1 ton}(s_bidder, amount - s_commitment, grams);*/
-        IAuction(s_auction).validateBid{value: 1 ton}(s_bidder, vault_address.get(), s_commitment);
+        IAuction(s_auction).
+            validateBid {
+                value: 0,
+                flag: 128
+            }(s_bidder, vault_address.get(), s_commitment);
     }
 
 /*

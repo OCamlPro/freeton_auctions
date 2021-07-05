@@ -54,12 +54,14 @@ abstract contract VDutchAuction is Constants, Buildable, IDutchAuction {
         Bidder auction_winner =
             Bidder(winner, commitment, msg.sender, winner_vault);
         IProcessWinner(s_winner_processor_address).
-            acknowledgeWinner{value: 1 ton}(auction_winner);
+            acknowledgeWinner{value:0, flag: 128}(auction_winner);
     }
 
     function bid(uint256 commitment) external override {
+        tvm.accept();
         if (betterPriceThanCurrent(commitment)){
-          IBidBuilder(s_bid_builder_address).deployBid{value: 1 ton}(address(this), commitment);
+          IBidBuilder(s_bid_builder_address).
+            deployBid{value: 0, flag: 128}(address(this), commitment);
         } else {
             emit InvalidBid();
         }
@@ -68,9 +70,10 @@ abstract contract VDutchAuction is Constants, Buildable, IDutchAuction {
     // If no bid has been done and the limit price is the best price,
     // the auction can be terminated.
     function endAuction() external override {
+        tvm.accept();
         if (betterPriceThanCurrent(s_limit_price)) {
             emit NoWinner();
-            IProcessWinner(s_winner_processor_address).acknowledgeNoWinner{value: 1 ton}();
+            IProcessWinner(s_winner_processor_address).acknowledgeNoWinner{value:0, flag: 128}();
             selfdestruct(s_owner);
         }
     }

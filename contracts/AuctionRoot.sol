@@ -10,7 +10,7 @@ import "BidBuilder.sol";
 
 contract AuctionRoot is Constants{
 
-    address static s_owner; // The owner of the auction root. Superfluous?
+    // address static s_owner; // The owner of the auction root. Superfluous?
     address static s_bid_address_reference; // The address of the reference bid address
     optional(TvmCell) s_english_code; // The English Auction code
     optional(TvmCell) s_english_reverse_code; // The English Reverse Auction code
@@ -21,9 +21,10 @@ contract AuctionRoot is Constants{
 
     uint256 id; // A counter for guvung unique IDs to auctions 
 
-    constructor() public{
+    constructor(address bid_address) public{
         tvm.accept();
         id = 0;
+        s_bid_address_reference = bid_address;
     }
 
     // When initializing codes, checking if they already have been initialized.
@@ -89,9 +90,9 @@ contract AuctionRoot is Constants{
     function deployBidBuilder(address root_wallet) internal returns (address){
         IBidBuilder b = new BidBuilder
         {
-            value: 1 ton,
+            value: 0,
+            flag: 128,
             code: s_bid_builder_code.get(),
-            pubkey: msg.pubkey(),
             varInit:{
                 s_root_wallet: root_wallet
             }
@@ -116,7 +117,8 @@ contract AuctionRoot is Constants{
         DutchAuction c = 
           new DutchAuction
             {
-            value: 1 ton,
+            value: 0,
+            flag: 128,
             code: s_dutch_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
@@ -147,7 +149,8 @@ contract AuctionRoot is Constants{
         DutchReverseAuction c = 
           new DutchReverseAuction
             {
-            value: 1 ton,
+            value: 0,
+            flag: 128,
             code: s_dutch_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
@@ -177,7 +180,8 @@ contract AuctionRoot is Constants{
         EnglishAuction c = 
           new EnglishAuction
             {
-            value: 1 ton,
+            value: 0,
+            flag: 128,
             code: s_english_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
@@ -206,7 +210,8 @@ contract AuctionRoot is Constants{
         EnglishReverseAuction c = 
           new EnglishReverseAuction
             {
-            value: 1 ton,
+            value: 0,
+            flag: 128,
             code: s_english_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
