@@ -20,7 +20,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
 
     optional(TvmCell) s_bid_builder_code; // The BidBuilder code
 
-    uint256 id; // A counter for guvung unique IDs to auctions 
+    uint256 id; // A counter for giving unique IDs to auctions 
 
     constructor(address bid_address) public{
         tvm.accept();
