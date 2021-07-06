@@ -84,8 +84,7 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
         }
     }
 
-    // Sends a bid.
-    // If it is incorrect, refunds the bidder.
+    // Starts the bid process
     function bid(uint256 commitment) external override {
         tvm.accept();
         require (!auctionOver(), E_AUCTION_OVER);
@@ -106,9 +105,7 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
         }
     }
 
-    // Once the auction has ended, this function emits the winner
-    // and destroys itself.
-    // TODO: Winner emission from root
+    // Ends an auction if the bidding time has passed.
     function endAuction() external override {
         tvm.accept();
         if (auctionOver()){

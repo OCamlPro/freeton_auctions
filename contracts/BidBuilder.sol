@@ -11,7 +11,7 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
     optional(address) auction_address; // Auction address, to be initialized
 
     address static s_root_wallet; // Wallet root
-    uint256 static s_auction_id; // Auction id (necessary for address)
+    uint256 static s_auction_id; // Auction id (useful for address uniqueness)
     uint256 id; // Id for the created bids
 
     modifier uninitializedCell(optional(TvmCell) opt){

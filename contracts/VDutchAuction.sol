@@ -47,18 +47,24 @@ abstract contract VDutchAuction is Constants, Buildable, IAuction {
         _;
     }
 
-    // A (correct) bid automatically ends the auction.
+    // Validates a bid.
+    // In the Dutch version, a valid bid automatically ends the auction
     function validateBid(address winner, address winner_vault, uint256 commitment) external override {
         // TODO: only from a Bid contract !
         tvm.accept ();
-        Bidder auction_winner =
-            Bidder(winner, commitment, msg.sender, winner_vault);
-        // TODO: check value parameter
-        IProcessWinner(s_winner_processor_address).
-            acknowledgeWinner{value:0.2 ton}(auction_winner);
-        IBid(msg.sender).transferVaultContent{value:0.2 ton}(s_owner);
+        if (betterPriceThanCurrent(commitment)){
+            Bidder auction_winner =
+                Bidder(winner, commitment, msg.sender, winner_vault);
+            // TODO: check value parameter
+            IProcessWinner(s_winner_processor_address).
+                acknowledgeWinner{value:0.2 ton}(auction_winner);
+            IBid(msg.sender).transferVaultContent{value:0.2 ton}(s_owner);
+        } else {
+            emit InvalidBid();
+        }
     }
 
+    // Starts the bid process
     function bid(uint256 commitment) external override {
         tvm.accept();
         if (betterPriceThanCurrent(commitment)){
@@ -69,6 +75,7 @@ abstract contract VDutchAuction is Constants, Buildable, IAuction {
         }
     }
     
+    // Ends an auction.
     // If no bid has been done and the limit price is the best price,
     // the auction can be terminated.
     function endAuction() external override {
