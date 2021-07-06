@@ -34,6 +34,11 @@ contract AuctionRoot is Constants{
         _;
     }
 
+    modifier atLeast(uint128 i){
+        require (msg.value >= i, E_VALUE_TOO_LOW);
+        _;
+    }
+
     // Sets the English Auction code
     function setEnglishCode(TvmCell code) external uninitialized(s_english_code){
         tvm.accept();
@@ -90,18 +95,21 @@ contract AuctionRoot is Constants{
     function deployBidBuilder(address root_wallet) internal returns (address){
         IBidBuilder b = new BidBuilder
         {
-            value: 0,
-            flag: 128,
+            value: 0.4 ton,
             code: s_bid_builder_code.get(),
             varInit:{
-                s_root_wallet: root_wallet
+                s_root_wallet: root_wallet,
+                s_auction_id: id
             }
         }();
         return address(b);
     }
 
-    function initBidBuilder(address bid_builder) view external{
-        IBidBuilder(bid_builder).init{value: 1 ton}(s_bid_address_reference);
+    function initBidBuilder(address bid_builder, address auction_address) view external{
+        IBidBuilder(bid_builder).init{value: 1 ton}(
+            s_bid_address_reference,
+            auction_address
+        );
     }
 
     // Deploys a Dutch Auction and its associated BidBuilder.
@@ -112,7 +120,8 @@ contract AuctionRoot is Constants{
         uint256 end_price, 
         uint256 price_delta, 
         uint256 time_delta
-        ) external {
+        ) external atLeast(1 ton) {
+        tvm.accept();
         address bid_builder = deployBidBuilder(root_wallet);
         DutchAuction c = 
           new DutchAuction
@@ -144,7 +153,8 @@ contract AuctionRoot is Constants{
         uint256 start_price, 
         uint256 end_price, 
         uint256 price_delta, 
-        uint256 time_delta) external {
+        uint256 time_delta) external  atLeast(1 ton) {
+        tvm.accept();
         address bid_builder = deployBidBuilder(root_wallet);
         DutchReverseAuction c = 
           new DutchReverseAuction
@@ -175,7 +185,8 @@ contract AuctionRoot is Constants{
         address winner_processor,
         uint256 start_price, 
         uint256 max_tick, 
-        uint256 max_time) external {
+        uint256 max_time) external atLeast(1 ton) {
+        tvm.accept();
         address bid_builder = deployBidBuilder(root_wallet);
         EnglishAuction c = 
           new EnglishAuction
@@ -205,7 +216,8 @@ contract AuctionRoot is Constants{
         address winner_processor,
         uint256 start_price, 
         uint256 max_tick, 
-        uint256 max_time) external {
+        uint256 max_time) external atLeast(1 ton) {
+        tvm.accept();
         address bid_builder = deployBidBuilder(root_wallet);
         EnglishReverseAuction c = 
           new EnglishReverseAuction

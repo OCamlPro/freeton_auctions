@@ -7,24 +7,46 @@ import "IBidBuilder.sol";
 
 contract BidBuilder is Constants, Buildable, IBidBuilder {
 
-    optional(TvmCell) s_bid_code; // Code of the bid contract
+    optional(TvmCell) bid_code; // Code of the bid contract, to be initialized
+    optional(address) auction_address; // Auction address, to be initialized
+
     address static s_root_wallet; // Wallet root
+    uint256 static s_auction_id; // Auction id (necessary for address)
     uint256 id; // Id for the created bids
 
-    modifier uninitialized(optional(TvmCell) v){
-        require (!v.hasValue(), E_ALREADY_INITIALIZED);
+    modifier uninitializedCell(optional(TvmCell) opt){
+        require (!opt.hasValue(), E_ALREADY_INITIALIZED);
         _;
     }
 
-    function setCode(TvmCell code) uninitialized(s_bid_code) external{
+    modifier uninitializedAddr(optional(address) opt){
+        require (!opt.hasValue(), E_ALREADY_INITIALIZED);
+        _;
+    }
+
+    modifier initializedCell(optional(TvmCell) opt){
+        require (opt.hasValue(), E_UNINITIALIZED);
+        _;
+    }
+
+    modifier initializedAddr(optional(address) opt){
+        require (opt.hasValue(), E_UNINITIALIZED);
+        _;
+    }
+
+    function setCode(TvmCell code) uninitializedCell(bid_code) external{
         tvm.accept();
-        s_bid_code = code;
+        bid_code = code;
         emit Ok();
     }
 
-    function init(address bid_address) override external{
+    function init(address bid_address, address auction_addr) 
+        override external uninitializedAddr(auction_address){
+        
         tvm.accept();
+        auction_address.set(auction_addr);
         IBuildable(bid_address).thisIsMyCode{value:0.5 ton, callback:this.setCode}();
+    
     }
 
     constructor() public{
@@ -33,18 +55,20 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
     }
 
     // For English/Dutch auctions, commitment = amount
-    function deployBid(address auction, uint256 commitment) override external{
+    function deployBid(uint256 commitment) override external 
+        initializedAddr(auction_address)
+        initializedCell(bid_code) {
         tvm.accept();
         Bid b =
             new Bid
             {
                 value:0,
                 flag: 128,
-                code: s_bid_code.get(),
+                code: bid_code.get(),
                 pubkey: msg.pubkey(),
                 varInit: 
                 {
-                    s_auction: auction,
+                    s_auction: auction_address.get(),
                     s_bidder: msg.sender,
                     s_commitment: commitment,
                     s_id: id,
@@ -52,7 +76,6 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
                 }
             }();
         ++id;
-        emit ThisIsYourBid(auction, id, address(b));
+        emit ThisIsYourBid(auction_address.get(), id, address(b));
     }
-
 }

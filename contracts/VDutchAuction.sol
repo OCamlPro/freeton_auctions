@@ -6,6 +6,7 @@ import "IAuction.sol";
 import "IProcessWinner.sol";
 import "Buildable.sol";
 import "IBidBuilder.sol";
+import "IBid.sol";
 
 // The main contract for the Dutch and Reverse Dutch Auction
 // https://en.wikipedia.org/wiki/Dutch_auction
@@ -53,15 +54,17 @@ abstract contract VDutchAuction is Constants, Buildable, IDutchAuction {
         tvm.accept ();
         Bidder auction_winner =
             Bidder(winner, commitment, msg.sender, winner_vault);
+        // TODO: check value parameter
         IProcessWinner(s_winner_processor_address).
-            acknowledgeWinner{value:0, flag: 128}(auction_winner);
+            acknowledgeWinner{value:0.2 ton}(auction_winner);
+        IBid(msg.sender).transferVaultContent{value:0.2 ton}(s_owner);
     }
 
     function bid(uint256 commitment) external override {
         tvm.accept();
         if (betterPriceThanCurrent(commitment)){
           IBidBuilder(s_bid_builder_address).
-            deployBid{value: 0, flag: 128}(address(this), commitment);
+            deployBid{value: 0, flag: 128}(commitment);
         } else {
             emit InvalidBid();
         }

@@ -76,15 +76,8 @@ contract Bid is Constants, Buildable {
             }(s_bidder, vault_address.get(), s_commitment);
     }
 
-/*
     function transferVaultContent(address dest) public view onlyFrom(s_auction){
         uint128 grams = 10000;
         IVault(vault_address.get()).transfer(dest, s_commitment, grams);
     }
-
-    function transferVaultContentToOwner() external view onlyFrom(s_auction){
-        transferVaultContent(s_bidder);
-    }
-*/
-
 }

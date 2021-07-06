@@ -5,6 +5,7 @@ import "IEnglishAuction.sol";
 import "IProcessWinner.sol";
 import "IBidBuilder.sol";
 import "Buildable.sol";
+import "IBid.sol";
 
 abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
     
@@ -71,8 +72,8 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
             // msg.sender is the Bid contract
             if (already_has_a_bidder){
                 Bidder old = best_bidder.get();
-                IProcessWinner(s_winner_processor_address).
-                    acknowledgeLoser{value:0, flag: 128}(old);
+                IBid(old.bid_contract).
+                    transferVaultContent{value:0, flag: 128}(old.bidder);
             }
             Bidder new_bidder = Bidder (bidder, commitment, msg.sender, bidder_vault);
             best_bidder.set(new_bidder);
@@ -98,7 +99,7 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
 
         if (newBidIsBetterThan(current_price, commitment)) {    
             IBidBuilder(s_bid_builder_address).
-                deployBid{value:0, flag: 128}(address(this), commitment);
+                deployBid{value:0, flag: 128}(commitment);
         } else {
             emit InvalidBid();
             require(false, E_INVALID_BID);
@@ -114,8 +115,11 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
             if (best_bidder.hasValue()) {
                 Bidder b = best_bidder.get();
                 emit Winner(b.bidder, b.bid);
+                // TODO: check value parameters
+                IBid(b.bid_contract).
+                    transferVaultContent{value:0.1 ton}(s_owner);
                 IProcessWinner(s_winner_processor_address).
-                    acknowledgeWinner{value:0, flag: 128}(b);
+                    acknowledgeWinner{value:0.2 ton}(b);
             } else {
                 IProcessWinner(s_winner_processor_address).
                     acknowledgeNoWinner{value:0, flag: 128}();

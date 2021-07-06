@@ -32,4 +32,6 @@ contract Constants is IConstants {
     uint16 constant E_ALREADY_INITIALIZED = 105;
     uint16 constant E_INVALID_BID = 106;
     uint16 constant E_AUCTION_NOT_OVER = 107;
+    uint16 constant E_VALUE_TOO_LOW = 108;
+    uint16 constant E_UNINITIALIZED = 109;
 }
