@@ -3,7 +3,7 @@ pragma ton-solidity >=0.44;
 import "Bid.sol";
 import "Constants.sol";
 import "Buildable.sol";
-import "IBidBuilder.sol";
+import "interfaces/IBidBuilder.sol";
 
 contract BidBuilder is Constants, Buildable, IBidBuilder {
 

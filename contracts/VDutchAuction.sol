@@ -1,17 +1,16 @@
 pragma ton-solidity >=0.44;
 
 import "Constants.sol";
-import "IDutchAuction.sol";
-import "IAuction.sol";
-import "IProcessWinner.sol";
+import "interfaces/IAuction.sol";
+import "interfaces/IProcessWinner.sol";
 import "Buildable.sol";
-import "IBidBuilder.sol";
-import "IBid.sol";
+import "interfaces/IBidBuilder.sol";
+import "interfaces/IBid.sol";
 
 // The main contract for the Dutch and Reverse Dutch Auction
 // https://en.wikipedia.org/wiki/Dutch_auction
 
-abstract contract VDutchAuction is Constants, Buildable, IDutchAuction {
+abstract contract VDutchAuction is Constants, Buildable, IAuction {
     address static s_owner; // The owner of the auction
     uint256 static s_starting_price; // The starting price
     uint256 static s_auction_start; // The starting time

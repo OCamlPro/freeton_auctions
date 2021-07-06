@@ -1,6 +1,6 @@
 pragma ton-solidity >=0.44;
 
-import "IBuildable.sol";
+import "interfaces/IBuildable.sol";
 
 contract Buildable is IBuildable {
     function thisIsMyCode() external override responsible returns(TvmCell){

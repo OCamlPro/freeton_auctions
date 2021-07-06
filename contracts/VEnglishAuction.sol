@@ -1,13 +1,13 @@
 pragma ton-solidity >=0.44;
 
 import "Constants.sol";
-import "IEnglishAuction.sol";
-import "IProcessWinner.sol";
-import "IBidBuilder.sol";
+import "interfaces/IAuction.sol";
+import "interfaces/IProcessWinner.sol";
 import "Buildable.sol";
-import "IBid.sol";
+import "interfaces/IBidBuilder.sol";
+import "interfaces/IBid.sol";
 
-abstract contract VEnglishAuction is Constants, IEnglishAuction, Buildable {
+abstract contract VEnglishAuction is Constants, IAuction, Buildable {
     
     address static s_owner; // The auction owner
     uint256 static s_auction_start; // The start of the auction

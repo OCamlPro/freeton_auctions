@@ -1,8 +1,8 @@
 pragma ton-solidity >=0.44;
 
 import "Constants.sol";
-import "IVault.sol";
-import "IProcessWinner.sol";
+import "interfaces/IVault.sol";
+import "interfaces/IProcessWinner.sol";
 
 contract CrystalProcessWinner is IProcessWinner, Constants{
     

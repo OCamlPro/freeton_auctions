@@ -1,6 +1,6 @@
 pragma ton-solidity >=0.44;
 
-import "IVault.sol";
+import "interfaces/IVault.sol";
 import "Constants.sol";
 
 contract CrystalVault is IVault, Constants{

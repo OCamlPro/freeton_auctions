@@ -1,9 +1,9 @@
 pragma ton-solidity >=0.44;
 
-import "IVault.sol";
-import "IAuction.sol";
+import "interfaces/IVault.sol";
+import "interfaces/IAuction.sol";
 import "Constants.sol";
-import "IRootWallet.sol";
+import "interfaces/IRootWallet.sol";
 import "Buildable.sol";
 
 contract Bid is Constants, Buildable {

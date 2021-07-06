@@ -1,6 +1,6 @@
 pragma ton-solidity >=0.44;
 
-import "IRootWallet.sol";
+import "interfaces/IRootWallet.sol";
 
 contract CrystalRootWallet is IRootWallet{
     constructor() public{

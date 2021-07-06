@@ -5,9 +5,9 @@ import "DutchAuction.sol";
 import "DutchReverseAuction.sol";
 import "EnglishAuction.sol";
 import "EnglishReverseAuction.sol";
-import "IBidBuilder.sol";
+import "interfaces/IBidBuilder.sol";
 import "BidBuilder.sol";
-import "IAuctionRoot.sol";
+import "interfaces/IAuctionRoot.sol";
 
 contract AuctionRoot is Constants, IAuctionRoot {
 
