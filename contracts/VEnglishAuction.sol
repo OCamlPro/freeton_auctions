@@ -1,23 +1,30 @@
 pragma ton-solidity >=0.44;
 
 import "Constants.sol";
-import "IEnglishAuction.sol";
+import "interfaces/IAuction.sol";
+import "interfaces/IProcessWinner.sol";
+import "Buildable.sol";
+import "interfaces/IBidBuilder.sol";
+import "interfaces/IBid.sol";
 
-abstract contract VEnglishAuction is Constants, IEnglishAuction {
+abstract contract VEnglishAuction is Constants, IAuction, Buildable {
     
     address static s_owner; // The auction owner
     uint256 static s_auction_start; // The start of the auction
-    uint128 static s_starting_price; // The auction starting price
+    uint256 static s_starting_price; // The auction starting price
     uint256 static s_max_tick; // After s_max_tick time without any new message, aution ends
     uint256 static s_max_time; // After s_max_time from the auction start, auction ends
     uint256 static s_id; // Unique ID of the auction
+    address static s_bid_builder_address; // The address of the bid builder
+    address static s_winner_processor_address; // The Winner processor
 
-    optional(Bidder) best_bidder; // The best bidder
-    
-    uint256 last_bid; // The last bid timestamp
+    optional(Bidder) best_bidder;
+    uint256 last_bid_timestamp;
 
     constructor() public {
         tvm.accept ();
+        s_auction_start = now;
+        last_bid_timestamp = now;
         // TODO: check static variables consistency
     }
 
@@ -29,46 +36,73 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
     // NB: note that you can encode any rule for this function (for example, 
     // checking that a new bid is higher than the current bid + a given limit)
     // but the whole logic of the English Auction is described here.
-    function newBidIsBetterThan(uint128 old_bid) virtual internal returns (bool);
-
-    // Sets the bidder of the storage.
-    // For obvious reasons, this function must not be external/public.
-    function setBidder() internal{
-        best_bidder.set(Bidder(msg.sender, msg.value));
-    }
+    function newBidIsBetterThan(uint256 old_bid, uint256 new_bid) virtual internal returns (bool);
 
     // Checks if the auction is over.
     // It can either have reached the time limit of the auction or have 
-    // no transaction after some time.  
+    // no transaction after some time.
     function auctionOver() internal view returns (bool) {
         return (
-            now - last_bid >= s_max_tick || 
+            (
+                now - last_bid_timestamp >= s_max_tick && 
+                best_bidder.hasValue()
+            ) ||
             now - s_auction_start >= s_max_time);
+    }
+
+    function validateBid
+        (
+            address bidder, 
+            address bidder_vault, 
+            uint256 commitment
+        ) external override {
+        // TODO: only from a Bid contract !
+        tvm.accept();
+        require (!auctionOver(), E_AUCTION_OVER);
+        uint256 current_price;
+        bool already_has_a_bidder = best_bidder.hasValue();
+
+        if (already_has_a_bidder) {
+            current_price = best_bidder.get().bid;
+        } else {
+            current_price = s_starting_price;
+        }
+
+        if (newBidIsBetterThan(current_price, commitment)) {
+            // msg.sender is the Bid contract
+            if (already_has_a_bidder){
+                Bidder old = best_bidder.get();
+                IBid(old.bid_contract).
+                    transferVaultContent{value:0, flag: 128}(old.bidder);
+            }
+            Bidder new_bidder = Bidder (bidder, commitment, msg.sender, bidder_vault);
+            best_bidder.set(new_bidder);
+
+        } else {
+            emit InvalidBid();
+            require(false, E_INVALID_BID);
+        }
     }
 
     // Sends a bid.
     // If it is incorrect, refunds the bidder.
-    function bid() external override {
+    function bid(uint256 commitment) external override {
         tvm.accept();
         require (!auctionOver(), E_AUCTION_OVER);
+        uint256 current_price;
+ 
         if (best_bidder.hasValue()) {
-            Bidder b = best_bidder.get();
-            if (newBidIsBetterThan(b.bid)) {
-              // New winner
-              setBidder();
-              // TODO: call bidder refund function
-              // currentBestBidder().transfer(b.bid, false, 2, ?)
-            } else {
-                // No new winner
-                // TODO: call callback_refund function
-                // msg.sender.transfer(b.bid, false, 2, ?)
-            }
+            current_price = best_bidder.get().bid;
         } else {
-            if (newBidIsBetterThan(s_starting_price)){
-                setBidder();
-            } else {
-                emit InvalidBid(); 
-            }
+            current_price = s_starting_price;
+        }
+
+        if (newBidIsBetterThan(current_price, commitment)) {    
+            IBidBuilder(s_bid_builder_address).
+                deployBid{value:0, flag: 128}(commitment);
+        } else {
+            emit InvalidBid();
+            require(false, E_INVALID_BID);
         }
     }
 
@@ -79,19 +113,21 @@ abstract contract VEnglishAuction is Constants, IEnglishAuction {
         tvm.accept();
         if (auctionOver()){
             if (best_bidder.hasValue()) {
-              Bidder b = best_bidder.get();
-              emit Winner(b.bidder, b.bid);
-              // TODO: call callback_winner
+                Bidder b = best_bidder.get();
+                emit Winner(b.bidder, b.bid);
+                // TODO: check value parameters
+                IBid(b.bid_contract).
+                    transferVaultContent{value:0.1 ton}(s_owner);
+                IProcessWinner(s_winner_processor_address).
+                    acknowledgeWinner{value:0.2 ton}(b);
+            } else {
+                IProcessWinner(s_winner_processor_address).
+                    acknowledgeNoWinner{value:0, flag: 128}();
             }
             selfdestruct(s_owner);
         } else {
             emit AuctionNotFinished();
+            require(false, E_AUCTION_NOT_OVER);
         }
     }
-
-    function thisIsMyCode() external override responsible returns(TvmCell) {
-        tvm.accept();
-        return {value: 1 ton} tvm.code();
-    }
-
 }

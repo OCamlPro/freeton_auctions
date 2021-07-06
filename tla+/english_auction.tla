@@ -22,7 +22,10 @@
         /\ tick = 0
         /\ time = 0
 
-    time_has_passed == time = max_time \/ tick = max_tick
+    time_has_passed == 
+        \/ time = max_time 
+        \/ /\ tick = max_tick
+           /\ auction!has_a_winner(highest_bidder)
     
     time_passes == time' = time + 1
 
@@ -51,7 +54,8 @@
 
     (* Invariants *)
     type_check ==
-        /\ tick \in 0..max_tick
+        /\ \/ tick \in 0..max_tick
+           \/ auction!has_no_winner(highest_bidder)
         /\ time \in 0..max_time
         /\ auction!bidder(highest_bidder) \in {0} \union bidders
         /\ auction!amount(highest_bidder) \in starting_price..(starting_price + time * max_bid)

@@ -6,8 +6,7 @@
         starting_price, (* The auction starting price *) 
         max_tick, (* After max_tick, the auction ends *)
         max_time, (* After max_time, the auction ends *)
-        num_bidders (* The number of bidders (only for TLA+) *)
-
+        num_bidders (* The number of bidders (only required for TLA) *)
 
     VARIABLES
         highest_bidder, (* The highest bidder *)
@@ -21,7 +20,10 @@
         /\ tick = 0
         /\ time = 0
 
-    time_has_passed == time = max_time \/ tick = max_tick
+    time_has_passed == 
+        \/ time = max_time 
+        \/ /\ tick = max_tick
+           /\ auction!has_a_winner(highest_bidder)
     
     time_passes == time' = time + 1
 
@@ -34,7 +36,7 @@
 
     can_bid ==
         \E b \in bidders:
-        \E p \in 0..starting_price:
+        \E p \in 1..auction!amount(highest_bidder):
             bid(b,p)
 
     no_bid == 
@@ -50,10 +52,11 @@
 
     (* Invariants *)
     type_check ==
-        /\ tick \in 0..max_tick
+        /\ \/ tick \in 0..max_tick
+           \/ auction!has_no_winner(highest_bidder)
         /\ time \in 0..max_time
         /\ auction!bidder(highest_bidder) \in {0} \union bidders
         /\ auction!amount(highest_bidder) \in 0..starting_price
 
-    never_lower == auction!amount(highest_bidder') <= auction!amount(highest_bidder)
+    never_lower == auction!amount(highest_bidder') >= auction!amount(highest_bidder)
 ====

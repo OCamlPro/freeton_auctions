@@ -5,144 +5,237 @@ import "DutchAuction.sol";
 import "DutchReverseAuction.sol";
 import "EnglishAuction.sol";
 import "EnglishReverseAuction.sol";
+import "interfaces/IBidBuilder.sol";
+import "BidBuilder.sol";
+import "interfaces/IAuctionRoot.sol";
 
-contract AuctionRoot is Constants{
+contract AuctionRoot is Constants, IAuctionRoot {
 
-    address static s_owner;
-    optional(TvmCell) s_english_code;
-    optional(TvmCell) s_english_reverse_code;
-    optional(TvmCell) s_dutch_code;
-    optional(TvmCell) s_dutch_reverse_code;
+    // address static s_owner; // The owner of the auction root. Superfluous?
+    address static s_bid_address_reference; // The address of the reference bid address
+    optional(TvmCell) s_english_code; // The English Auction code
+    optional(TvmCell) s_english_reverse_code; // The English Reverse Auction code
+    optional(TvmCell) s_dutch_code; // The Dutch Auction code
+    optional(TvmCell) s_dutch_reverse_code; // The Dutch Reverse Auction code
 
-    uint256 id;
+    optional(TvmCell) s_bid_builder_code; // The BidBuilder code
 
-    int32 constant ID_SET_ENGLISH_CODE = 201;
-    int32 constant ID_SET_ENGLISH_REVERSE_CODE = 202;
-    int32 constant ID_SET_DUTCH_CODE = 203;
-    int32 constant ID_SET_DUTCH_REVERSE_CODE = 204;
+    uint256 id; // A counter for guvung unique IDs to auctions 
 
-    constructor() public{
+    constructor(address bid_address) public{
         tvm.accept();
         id = 0;
+        s_bid_address_reference = bid_address;
     }
 
+    // When initializing codes, checking if they already have been initialized.
+    // If so, fails.
     modifier uninitialized(optional(TvmCell) v){
         require (!v.hasValue(), E_ALREADY_INITIALIZED);
         _;
     }
 
-    function setEnglishCode(TvmCell e) external uninitialized(s_english_code){
+    modifier atLeast(uint128 i){
+        require (msg.value >= i, E_VALUE_TOO_LOW);
+        _;
+    }
+
+    // Sets the English Auction code
+    function setEnglishCode(TvmCell code) override external uninitialized(s_english_code){
         tvm.accept();
-        s_english_code = e;
+        s_english_code.set(code);
         emit Ok();
     }
 
-    function setEnglishReverseCode(TvmCell e) external uninitialized(s_english_reverse_code){
+    // Sets the English Reverse Auction code
+    function setEnglishReverseCode(TvmCell code) override external uninitialized(s_english_reverse_code){
         tvm.accept();
-        s_english_reverse_code = e;
+        s_english_reverse_code.set(code);
         emit Ok();
     }
 
-    function setDutchCode(TvmCell e) external uninitialized(s_dutch_code){
+    // Sets the Dutch Auction code
+    function setDutchCode(TvmCell code) override external uninitialized(s_dutch_code){
         tvm.accept();
-        s_dutch_code = e;
+        s_dutch_code.set(code);
         emit Ok();
     }
 
-    function setDutchReverseCode(TvmCell e) external uninitialized(s_dutch_reverse_code){
+    // Sets the Dutch Reverse Auction code
+    function setDutchReverseCode(TvmCell code) override external uninitialized(s_dutch_reverse_code){
         tvm.accept();
-        s_dutch_reverse_code = e;
+        s_dutch_reverse_code.set(code);
         emit Ok();
     }
 
-    function init(address ec, address erc, address dc, address drc) pure external{
+    // Sets the BidBuilder code
+    function setBidBuilderCode(TvmCell code) override external uninitialized(s_bid_builder_code){
         tvm.accept();
-        EnglishAuction(ec).thisIsMyCode{value:1 ton, callback: this.setEnglishCode}();
-        EnglishReverseAuction(erc).thisIsMyCode{value:1 ton, callback: this.setEnglishReverseCode}();
-        DutchAuction(dc).thisIsMyCode{value:1 ton, callback: this.setDutchCode}();
-        DutchReverseAuction(drc).thisIsMyCode{value:1 ton, callback: this.setDutchReverseCode}();
+        s_bid_builder_code.set(code);
+        emit Ok();
     }
 
-    function deployDutchAuction(uint128 start_price, uint128 end_price, uint128 price_delta, uint256 time_delta) external{
+    // Initializes the different contract variables storing the contract codes.
+    function init(
+        address english_auction, 
+        address english_reverse_auction, 
+        address dutch_auction, 
+        address dutch_reverse_auction,
+        address bid_builder
+        ) pure override external{
+        tvm.accept();
+        IBuildable(english_auction).thisIsMyCode{value:1 ton, callback: this.setEnglishCode}();
+        IBuildable(english_reverse_auction).thisIsMyCode{value:1 ton, callback: this.setEnglishReverseCode}();
+        IBuildable(dutch_auction).thisIsMyCode{value:1 ton, callback: this.setDutchCode}();
+        IBuildable(dutch_reverse_auction).thisIsMyCode{value:1 ton, callback: this.setDutchReverseCode}();
+        IBuildable(bid_builder).thisIsMyCode{value:1 ton, callback: this.setBidBuilderCode}();
+    }
+
+    // Deploys a Bid Builder.
+    // A bid builder requires a root wallet, whose interface is IRootWallet.
+    function deployBidBuilder(address root_wallet) internal returns (address){
+        IBidBuilder b = new BidBuilder
+        {
+            value: 0.4 ton,
+            code: s_bid_builder_code.get(),
+            varInit:{
+                s_root_wallet: root_wallet,
+                s_auction_id: id
+            }
+        }();
+        return address(b);
+    }
+
+    function initBidBuilder(address bid_builder, address auction_address) view override external{
+        IBidBuilder(bid_builder).init{value: 1 ton}(
+            s_bid_address_reference,
+            auction_address
+        );
+    }
+
+    // Deploys a Dutch Auction and its associated BidBuilder.
+    function deployDutchAuction(
+        address root_wallet,
+        address winner_processor,
+        uint256 start_price, 
+        uint256 end_price, 
+        uint256 price_delta, 
+        uint256 time_delta
+        ) override external atLeast(1 ton) {
+        tvm.accept();
+        address bid_builder = deployBidBuilder(root_wallet);
         DutchAuction c = 
           new DutchAuction
             {
-            value: 5 ton,
+            value: 0,
+            flag: 128,
             code: s_dutch_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {
                     s_owner: msg.sender,
                     s_starting_price: start_price,
-                    s_starting_time: now,
                     s_limit_price: end_price,
                     s_price_delta: price_delta,
                     s_time_delta: time_delta,
-                    s_id: id
+                    s_id: id,
+                    s_bid_builder_address: bid_builder,
+                    s_winner_processor_address: winner_processor
                 }
             }();
         ++id;
         emit AuctionCreated(address(c));
     }
 
-    function deployReverseDutchAuction(uint128 start_price, uint128 end_price, uint128 price_delta, uint256 time_delta) external{
+    // Deploys a Dutch Reverse Auction and its associated BidBuilder.
+    function deployDutchReverseAuction(
+        address root_wallet,
+        address winner_processor,
+        uint256 start_price, 
+        uint256 end_price, 
+        uint256 price_delta, 
+        uint256 time_delta) override external atLeast(1 ton) {
+        tvm.accept();
+        address bid_builder = deployBidBuilder(root_wallet);
         DutchReverseAuction c = 
           new DutchReverseAuction
             {
-            value: 5 ton,
+            value: 0,
+            flag: 128,
             code: s_dutch_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {
                     s_owner: msg.sender,
                     s_starting_price: start_price,
-                    s_starting_time: now,
                     s_limit_price: end_price,
                     s_price_delta: price_delta,
                     s_time_delta: time_delta,
-                    s_id: id
+                    s_id: id,
+                    s_bid_builder_address: bid_builder,
+                    s_winner_processor_address: winner_processor
                 }
             }();
         ++id;
         emit AuctionCreated(address(c));
     }
 
-    function deployEnglishAuction(uint128 start_price, uint256 max_tick, uint256 max_time) external{
+    // Deploys a English Auction and its associated BidBuilder.
+    function deployEnglishAuction(
+        address root_wallet,
+        address winner_processor,
+        uint256 start_price, 
+        uint256 max_tick, 
+        uint256 max_time) override external atLeast(1 ton) {
+        tvm.accept();
+        address bid_builder = deployBidBuilder(root_wallet);
         EnglishAuction c = 
           new EnglishAuction
             {
-            value: 5 ton,
+            value: 0,
+            flag: 128,
             code: s_english_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {
                     s_owner: msg.sender,
-                    s_auction_start: now,
                     s_starting_price: start_price,
                     s_max_tick: max_tick,
                     s_max_time: max_time,
-                    s_id: id
+                    s_id: id,
+                    s_bid_builder_address: bid_builder,
+                    s_winner_processor_address: winner_processor
                 }
             }();
         ++id;
         emit AuctionCreated(address(c));
     }
 
-    function deployReverseEnglishAuction(uint128 start_price, uint256 max_tick, uint256 max_time) external {
+    // Deploys a English Reverse Auction and its associated BidBuilder.
+    function deployEnglishReverseAuction(
+        address root_wallet,
+        address winner_processor,
+        uint256 start_price, 
+        uint256 max_tick, 
+        uint256 max_time) override external atLeast(1 ton) {
+        tvm.accept();
+        address bid_builder = deployBidBuilder(root_wallet);
         EnglishReverseAuction c = 
           new EnglishReverseAuction
             {
-            value: 5 ton,
+            value: 0,
+            flag: 128,
             code: s_english_reverse_code.get(),
             pubkey: msg.pubkey(),
             varInit: 
                 {
                     s_owner: msg.sender,
-                    s_auction_start: now,
                     s_starting_price: start_price,
                     s_max_tick: max_tick,
                     s_max_time: max_time,
-                    s_id: id
+                    s_id: id,
+                    s_bid_builder_address: bid_builder,
+                    s_winner_processor_address: winner_processor
                 }
             }();
         ++id;

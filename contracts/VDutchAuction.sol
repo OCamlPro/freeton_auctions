@@ -1,23 +1,29 @@
 pragma ton-solidity >=0.44;
 
 import "Constants.sol";
-import "IDutchAuction.sol";
-import "IAuction.sol";
+import "interfaces/IAuction.sol";
+import "interfaces/IProcessWinner.sol";
+import "Buildable.sol";
+import "interfaces/IBidBuilder.sol";
+import "interfaces/IBid.sol";
 
 // The main contract for the Dutch and Reverse Dutch Auction
 // https://en.wikipedia.org/wiki/Dutch_auction
 
-abstract contract VDutchAuction is Constants, IDutchAuction {
+abstract contract VDutchAuction is Constants, Buildable, IAuction {
     address static s_owner; // The owner of the auction
-    uint128 static s_starting_price; // The starting price
-    uint256 static s_starting_time; // The starting time
-    uint128 static s_limit_price; // The limit price
-    uint128 static s_price_delta; // The price decrement over time
+    uint256 static s_starting_price; // The starting price
+    uint256 static s_auction_start; // The starting time
+    uint256 static s_limit_price; // The limit price
+    uint256 static s_price_delta; // The price decrement over time
     uint256 static s_time_delta; // The time after which the time
-    uint256 static s_id;
+    uint256 static s_id; // Unique ID of the auction
+    address static s_bid_builder_address; // The address of the bid builder
+    address static s_winner_processor_address; // The Winner processor
 
     constructor() public{
         tvm.accept();
+        s_auction_start = now;
     }
 
     // This funcion will calculate the current price given the starting price
@@ -33,16 +39,31 @@ abstract contract VDutchAuction is Constants, IDutchAuction {
     //   Its maximum is s_limit_price.
     //   Returns true if the value in argument is higher or equal to the 
     //   current price.
-    // TODO: emission of Winner in Root.
-    function betterPriceThanCurrent(uint128) internal virtual returns(bool);
+    function betterPriceThanCurrent(uint256) internal virtual returns(bool);
+
+
+    modifier onlyFrom(address a){
+        require(msg.sender == a, E_UNAUTHORIZED);
+        _;
+    }
 
     // A (correct) bid automatically ends the auction.
-    function bid() external override {
+    function validateBid(address winner, address winner_vault, uint256 commitment) external override {
+        // TODO: only from a Bid contract !
         tvm.accept ();
-        if (betterPriceThanCurrent(msg.value)){
-            emit Winner (msg.sender, msg.value);
-            // TODO: call winner_callback function
-            selfdestruct(s_owner);
+        Bidder auction_winner =
+            Bidder(winner, commitment, msg.sender, winner_vault);
+        // TODO: check value parameter
+        IProcessWinner(s_winner_processor_address).
+            acknowledgeWinner{value:0.2 ton}(auction_winner);
+        IBid(msg.sender).transferVaultContent{value:0.2 ton}(s_owner);
+    }
+
+    function bid(uint256 commitment) external override {
+        tvm.accept();
+        if (betterPriceThanCurrent(commitment)){
+          IBidBuilder(s_bid_builder_address).
+            deployBid{value: 0, flag: 128}(commitment);
         } else {
             emit InvalidBid();
         }
@@ -50,16 +71,12 @@ abstract contract VDutchAuction is Constants, IDutchAuction {
     
     // If no bid has been done and the limit price is the best price,
     // the auction can be terminated.
-    // TODO: emission of NoWinner in Root.
     function endAuction() external override {
+        tvm.accept();
         if (betterPriceThanCurrent(s_limit_price)) {
             emit NoWinner();
+            IProcessWinner(s_winner_processor_address).acknowledgeNoWinner{value:0, flag: 128}();
             selfdestruct(s_owner);
         }
-    }
-
-    function thisIsMyCode() external override responsible returns(TvmCell) {
-        tvm.accept();
-        return {value: 1 ton} tvm.code();
     }
 }

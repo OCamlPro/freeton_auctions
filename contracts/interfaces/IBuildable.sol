@@ -1,6 +1,5 @@
 pragma ton-solidity >=0.44;
 
-interface IAuction {
-    function bid() external;
+interface IBuildable{
     function thisIsMyCode() external responsible returns(TvmCell);
 }
