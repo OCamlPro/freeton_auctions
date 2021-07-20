@@ -398,13 +398,14 @@ contract AuctionDebot is Debot, Upgradable, Transferable, Utility {
   function setMaxTimeEn(string value) public {
     setEnglishMaxTick(
       value,
-      "You are about to create the auction. Press enter to check the details of the auction.",
+      "Please confirm to see the details of your auction [Y]es / [N]o",
       tvm.functionId(onSuccessEn),
       tvm.functionId(setMaxTimeEn)
     );
   }
 
-  function onSuccessEn(string) public {
+  function onSuccessEn(string value) public {
+    Terminal.print(0, value);
     Terminal.print(0, "Here are the details of your auction.");
     if (m_reverse) {
       Terminal.print(0, "Kind: Reverse English");
@@ -419,7 +420,8 @@ contract AuctionDebot is Debot, Upgradable, Transferable, Utility {
     Terminal.input(tvm.functionId(deployEnglishAuction), "You are about to create an auction. Please confirm [Y]es / [N]o", false);
   }
 
-  function deployEnglishAuction(string) public {
+  function deployEnglishAuction(string value) public {
+    Terminal.print(0, value);
     Terminal.print(0, "TODO.");
   }
 
