@@ -41,16 +41,9 @@ abstract contract VDutchAuction is Constants, Buildable, IAuction {
     //   current price.
     function betterPriceThanCurrent(uint256) internal virtual returns(bool);
 
-
-    modifier onlyFrom(address a){
-        require(msg.sender == a, E_UNAUTHORIZED);
-        _;
-    }
-
     // Validates a bid.
     // In the Dutch version, a valid bid automatically ends the auction
-    function validateBid(address winner, address winner_vault, uint256 commitment) external override {
-        // TODO: only from a Bid contract !
+    function validateBid(address winner, address winner_vault, uint256 commitment) external override onlyFrom(s_bid_builder_address) {
         tvm.accept ();
         if (betterPriceThanCurrent(commitment)){
             Bidder auction_winner =

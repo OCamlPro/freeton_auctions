@@ -55,8 +55,7 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
             address bidder, 
             address bidder_vault, 
             uint256 commitment
-        ) external override {
-        // TODO: only from a Bid contract !
+        ) external override onlyFrom(s_bid_builder_address) {
         tvm.accept();
         require (!auctionOver(), E_AUCTION_OVER);
         uint256 current_price;
