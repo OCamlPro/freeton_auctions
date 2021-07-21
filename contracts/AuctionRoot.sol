@@ -12,15 +12,15 @@ import "interfaces/IAuctionRoot.sol";
 contract AuctionRoot is Constants, IAuctionRoot {
 
     // address static s_owner; // The owner of the auction root. Superfluous?
-    address static s_bid_address_reference; // The address of the reference bid address
+    address static s_bid_address_reference; // The address of the reference bid
+
     optional(TvmCell) s_english_code; // The English Auction code
     optional(TvmCell) s_english_reverse_code; // The English Reverse Auction code
     optional(TvmCell) s_dutch_code; // The Dutch Auction code
     optional(TvmCell) s_dutch_reverse_code; // The Dutch Reverse Auction code
-
     optional(TvmCell) s_bid_builder_code; // The BidBuilder code
 
-    uint256 id; // A counter for guvung unique IDs to auctions 
+    uint256 id; // A counter for giving unique IDs to auctions 
 
     constructor(address bid_address) public{
         tvm.accept();
@@ -35,8 +35,9 @@ contract AuctionRoot is Constants, IAuctionRoot {
         _;
     }
 
-    modifier atLeast(uint128 i){
-        require (msg.value >= i, E_VALUE_TOO_LOW);
+    // Checks if the message value has at least `val` nanotons
+    modifier atLeast(uint128 val){
+        require (msg.value >= val, E_VALUE_TOO_LOW);
         _;
     }
 
@@ -106,6 +107,10 @@ contract AuctionRoot is Constants, IAuctionRoot {
         return address(b);
     }
 
+    // Initializes a BidBuilder.
+    // Initialization could be performed during deployment, but it requires the address
+    // of the auction that also needs the address of the BidBuilder.
+    // Calculating the BidBuilder address before its deployment would avoid calling this function
     function initBidBuilder(address bid_builder, address auction_address) view override external{
         IBidBuilder(bid_builder).init{value: 1 ton}(
             s_bid_address_reference,

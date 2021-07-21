@@ -11,7 +11,7 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
     optional(address) auction_address; // Auction address, to be initialized
 
     address static s_root_wallet; // Wallet root
-    uint256 static s_auction_id; // Auction id (necessary for address)
+    uint256 static s_auction_id; // Auction id (useful for address uniqueness)
     uint256 id; // Id for the created bids
 
     modifier uninitializedCell(optional(TvmCell) opt){
@@ -69,6 +69,7 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
                 varInit: 
                 {
                     s_auction: auction_address.get(),
+                    s_bid_builder: address(this),
                     s_bidder: msg.sender,
                     s_commitment: commitment,
                     s_id: id,
@@ -78,4 +79,35 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
         ++id;
         emit ThisIsYourBid(auction_address.get(), id, address(b));
     }
+
+    function validateBid(address bidder, address vault_address, uint256 commitment, uint256 bid_id) external view override {
+        // 1. Checking the bid has been built by the current bid builder
+        tvm.accept();
+
+        TvmCell stateInit = 
+            tvm.buildStateInit({
+                code: bid_code.get(),
+                pubkey: msg.pubkey(),
+                contr: Bid,
+                varInit:{
+                    s_auction: auction_address.get(),
+                    s_bid_builder: address(this),
+                    s_bidder: bidder,
+                    s_commitment: commitment,
+                    s_id: bid_id,
+                    s_root_wallet: s_root_wallet
+                }
+            });
+
+        require (msg.sender == address(tvm.hash(stateInit)), E_UNAUTHORIZED);
+
+        // 2. Validating the bid
+        Bidder b = Bidder(bidder, commitment, msg.sender, vault_address); 
+        IAuction(auction_address.get()).
+            validateBid {
+                value: 0,
+                flag: 128
+            }(b);
+    }
+
 }

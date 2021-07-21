@@ -7,11 +7,6 @@ contract CrystalVault is IVault, Constants{
     
     address static s_process_winner_address;
 
-    modifier onlyFrom(address addr){
-        require (msg.sender == addr, E_UNAUTHORIZED);
-        _;
-    }
-
     constructor() public{
         tvm.accept();
     }
