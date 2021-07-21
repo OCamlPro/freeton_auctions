@@ -55,6 +55,7 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
     }
 
     // For English/Dutch auctions, commitment = amount
+    // For Blind auction, commitment = hash(salt, amount);
     function deployBid(uint256 commitment) override external 
         initializedAddr(auction_address)
         initializedCell(bid_code) {

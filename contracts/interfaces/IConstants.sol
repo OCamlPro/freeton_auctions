@@ -9,6 +9,11 @@ interface IConstants{
         address bid_vault;
     }
 
+    struct BidderLinkedList{
+        Bidder b;
+        optional(BidderLinkedList) next; 
+    }
+
     event Winner(address, uint256);
     event NoWinner();
     event Loser(address, uint256);
