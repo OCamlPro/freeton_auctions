@@ -101,12 +101,13 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
 
         require (msg.sender == address(tvm.hash(stateInit)), E_UNAUTHORIZED);
 
-        // 2. Validating the bid 
+        // 2. Validating the bid
+        Bidder b = Bidder(bidder, commitment, msg.sender, vault_address); 
         IAuction(auction_address.get()).
             validateBid {
                 value: 0,
                 flag: 128
-            }(bidder, vault_address, commitment);
+            }(b);
     }
 
 }
