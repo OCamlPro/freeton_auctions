@@ -80,23 +80,8 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
     // Starts the bid process
     function bid(uint256 commitment) external override {
         tvm.accept();
-        require (!auctionOver(), E_AUCTION_OVER);
-        uint256 current_price;
- 
-        if (best_bidder.hasValue()) {
-            current_price = best_bidder.get().bid;
-        } else {
-            current_price = s_starting_price;
-        }
-
-        if (newBidIsBetterThan(current_price, commitment)) {    
-            IBidBuilder(s_bid_builder_address).
-                deployBid{value:0, flag: 128}(commitment);
-        } else {
-            emit InvalidBid();
-            require(false, E_INVALID_BID);
-            // TODO: refund bidder
-        }
+        IBidBuilder(s_bid_builder_address).
+            deployBid{value:0, flag: 128}(commitment);
     }
 
     // Ends an auction if the bidding time has passed.

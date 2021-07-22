@@ -56,13 +56,8 @@ abstract contract VDutchAuction is Constants, Buildable, IAuction {
 
     // Starts the bid process
     function bid(uint256 commitment) external override {
-        tvm.accept();
-        if (betterPriceThanCurrent(commitment)){
-          IBidBuilder(s_bid_builder_address).
-            deployBid{value: 0, flag: 128}(commitment);
-        } else {
-            emit InvalidBid();
-        }
+        IBidBuilder(s_bid_builder_address).
+          deployBid{value: 0, flag: 128}(commitment);
     }
     
     // Ends an auction.

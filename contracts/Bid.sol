@@ -19,7 +19,8 @@ contract Bid is Constants, Buildable {
     address static s_bidder;
 
     // Commitment
-    // For English/Dutch auctions, commitment = amount
+    // For non blind auctions, commitment = amount
+    // For blind auctions, commitment = hash(salt, amount)
     uint256 static s_commitment;
 
     // Unique Bid ID

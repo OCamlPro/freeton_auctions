@@ -13,6 +13,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
 
     // address static s_owner; // The owner of the auction root. Superfluous?
     address static s_bid_address_reference; // The address of the reference bid
+    address static s_blind_bid_address_reference; // The address of the reference blind bid
 
     optional(TvmCell) s_english_code; // The English Auction code
     optional(TvmCell) s_english_reverse_code; // The English Reverse Auction code
@@ -22,10 +23,11 @@ contract AuctionRoot is Constants, IAuctionRoot {
 
     uint256 id; // A counter for giving unique IDs to auctions 
 
-    constructor(address bid_address) public{
+    constructor(address bid_address, address blind_bid_address) public{
         tvm.accept();
         id = 0;
         s_bid_address_reference = bid_address;
+        s_bid_address_reference = blind_bid_address;
     }
 
     // When initializing codes, checking if they already have been initialized.
@@ -111,9 +113,15 @@ contract AuctionRoot is Constants, IAuctionRoot {
     // Initialization could be performed during deployment, but it requires the address
     // of the auction that also needs the address of the BidBuilder.
     // Calculating the BidBuilder address before its deployment would avoid calling this function
-    function initBidBuilder(address bid_builder, address auction_address) view override external{
+    function initBidBuilder(address bid_builder, address auction_address, bool blind) view override external{
+        address bid_reference;
+        if (blind) {
+            bid_reference = s_blind_bid_address_reference;
+        } else {
+            bid_reference = s_bid_address_reference;
+        }
         IBidBuilder(bid_builder).init{value: 1 ton}(
-            s_bid_address_reference,
+            bid_reference,
             auction_address
         );
     }

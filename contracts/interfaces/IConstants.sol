@@ -19,5 +19,6 @@ interface IConstants{
     event BidPubkey(address auction, uint256 bid_id, uint256 bid_pubkey);
     event ThisIsYourBid(address auction, uint256 bid_id, address bid);
     event Ok();
+    event RevelationSuccess();
 
 }
