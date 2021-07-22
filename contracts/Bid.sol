@@ -37,7 +37,6 @@ contract Bid is Constants, Buildable {
 
     constructor() public{
         tvm.accept();
-        emit BidPubkey(s_auction, s_id, tvm.pubkey());
     }
 
     // Starts the check vault process
@@ -45,8 +44,7 @@ contract Bid is Constants, Buildable {
     // Can be started by anyone
     function checkVault() external view {
         IRootWallet(s_root_wallet).getWalletAddress {
-            value: 0,
-            flag: 128,
+            value: 0.8 ton,
             callback:this.checkVaultAddr
         }(0,tvm.pubkey());
     }
@@ -55,8 +53,7 @@ contract Bid is Constants, Buildable {
     function checkVaultAddr(address a) external onlyFrom(s_root_wallet){
         vault_address.set(a);
         IVault(a).getBalance {
-            value: 0,
-            flag: 128,
+            value: 0.6 ton,
             callback: this.checkVaultContent
         }();
     }
@@ -71,8 +68,7 @@ contract Bid is Constants, Buildable {
             transfer{value: 1 ton}(s_bidder, amount - s_commitment, grams);*/
         IBidBuilder(s_bid_builder).
             validateBid {
-                value: 0,
-                flag: 128
+                value: 0.4 ton
             }(s_bidder, vault_address.get(), s_commitment, s_id);
     }
 

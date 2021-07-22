@@ -27,7 +27,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
         tvm.accept();
         id = 0;
         s_bid_address_reference = bid_address;
-        s_bid_address_reference = blind_bid_address;
+        s_blind_bid_address_reference = blind_bid_address;
     }
 
     // When initializing codes, checking if they already have been initialized.
@@ -120,7 +120,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
         } else {
             bid_reference = s_bid_address_reference;
         }
-        IBidBuilder(bid_builder).init{value: 1 ton}(
+        IBidBuilder(bid_builder).init{value:0, flag: 128}(
             bid_reference,
             auction_address
         );
@@ -134,30 +134,28 @@ contract AuctionRoot is Constants, IAuctionRoot {
         uint256 end_price, 
         uint256 price_delta, 
         uint256 time_delta
-        ) override external atLeast(1 ton) {
+        ) override external atLeast(2 ton) {
         tvm.accept();
         address bid_builder = deployBidBuilder(root_wallet);
         DutchAuction c = 
-          new DutchAuction
-            {
-            value: 0,
-            flag: 128,
-            code: s_dutch_code.get(),
-            pubkey: msg.pubkey(),
-            varInit: 
-                {
-                    s_owner: msg.sender,
-                    s_starting_price: start_price,
-                    s_limit_price: end_price,
-                    s_price_delta: price_delta,
-                    s_time_delta: time_delta,
-                    s_id: id,
-                    s_bid_builder_address: bid_builder,
-                    s_winner_processor_address: winner_processor
-                }
-            }();
+            new DutchAuction {
+                value: 1 ton,
+                code: s_dutch_code.get(),
+                pubkey: msg.pubkey(),
+                varInit: 
+                    {
+                        s_owner: msg.sender,
+                        s_starting_price: start_price,
+                        s_limit_price: end_price,
+                        s_price_delta: price_delta,
+                        s_time_delta: time_delta,
+                        s_id: id,
+                        s_bid_builder_address: bid_builder,
+                        s_winner_processor_address: winner_processor
+                    }
+                }();
         ++id;
-        emit AuctionCreated(address(c));
+        emit AuctionCreated(address(c), bid_builder);
     }
 
     // Deploys a Dutch Reverse Auction and its associated BidBuilder.
@@ -190,7 +188,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
                 }
             }();
         ++id;
-        emit AuctionCreated(address(c));
+        emit AuctionCreated(address(c), bid_builder);
     }
 
     // Deploys a English Auction and its associated BidBuilder.
@@ -221,7 +219,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
                 }
             }();
         ++id;
-        emit AuctionCreated(address(c));
+        emit AuctionCreated(address(c), bid_builder);
     }
 
     // Deploys a English Reverse Auction and its associated BidBuilder.
@@ -252,7 +250,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
                 }
             }();
         ++id;
-        emit AuctionCreated(address(c));
+        emit AuctionCreated(address(c), bid_builder);
     }
 
 }

@@ -36,22 +36,21 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
 
     function setCode(TvmCell code) uninitializedCell(bid_code) external{
         tvm.accept();
-        bid_code = code;
+        bid_code.set(code);
         emit Ok();
     }
 
-    function init(address bid_address, address auction_addr) 
+    function init(address bid_address, address auction_addr)
         override external uninitializedAddr(auction_address){
-        
         tvm.accept();
         auction_address.set(auction_addr);
-        IBuildable(bid_address).thisIsMyCode{value:0.5 ton, callback:this.setCode}();
-    
+        IBuildable(bid_address).thisIsMyCode{value:0 ton, flag: 128, callback:this.setCode}();
     }
 
     constructor() public{
         tvm.accept();
         id = 0;
+        emit Ok();
     }
 
     // For English/Dutch auctions, commitment = amount
@@ -59,13 +58,12 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
         initializedAddr(auction_address)
         initializedCell(bid_code) {
         tvm.accept();
+        // TODO: reserve funds instead of 0.5 ton
         Bid b =
             new Bid
             {
-                value:0,
-                flag: 128,
+                value:0.5 ton,
                 code: bid_code.get(),
-                pubkey: msg.pubkey(),
                 varInit: 
                 {
                     s_auction: auction_address.get(),
@@ -77,7 +75,7 @@ contract BidBuilder is Constants, Buildable, IBidBuilder {
                 }
             }();
         ++id;
-        emit ThisIsYourBid(auction_address.get(), id, address(b));
+        emit ThisIsYourBid(auction_address.get(), id, address(b), s_root_wallet);
     }
 
     function validateBid(address bidder, address vault_address, uint256 commitment, uint256 bid_id) external view override {

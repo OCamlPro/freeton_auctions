@@ -15,7 +15,11 @@ interface IAuctionRoot{
         address bid_builder
     ) external pure;
 
-    function initBidBuilder(address bid_builder, address auction_address) external view;
+    function initBidBuilder(
+        address bid_builder, 
+        address auction_address,
+        bool blind
+    ) external view;
 
     function deployDutchAuction(
         address root_wallet,
