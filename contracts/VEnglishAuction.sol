@@ -50,13 +50,7 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
             now - s_auction_start >= s_max_time);
     }
 
-    function validateBid
-        (
-            address bidder, 
-            address bidder_vault, 
-            uint256 commitment
-        ) external override {
-        // TODO: only from a Bid contract !
+    function validateBid ( Bidder new_bidder ) external override onlyFrom(s_bid_builder_address) {
         tvm.accept();
         require (!auctionOver(), E_AUCTION_OVER);
         uint256 current_price;
@@ -68,24 +62,22 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
             current_price = s_starting_price;
         }
 
-        if (newBidIsBetterThan(current_price, commitment)) {
-            // msg.sender is the Bid contract
+        if (newBidIsBetterThan(current_price, new_bidder.bid)) {
             if (already_has_a_bidder){
                 Bidder old = best_bidder.get();
                 IBid(old.bid_contract).
                     transferVaultContent{value:0, flag: 128}(old.bidder);
             }
-            Bidder new_bidder = Bidder (bidder, commitment, msg.sender, bidder_vault);
             best_bidder.set(new_bidder);
 
         } else {
             emit InvalidBid();
-            require(false, E_INVALID_BID);
+            require(false, E_INVALID_BID); 
+            // TODO: refund bidder
         }
     }
 
-    // Sends a bid.
-    // If it is incorrect, refunds the bidder.
+    // Starts the bid process
     function bid(uint256 commitment) external override {
         tvm.accept();
         require (!auctionOver(), E_AUCTION_OVER);
@@ -103,12 +95,11 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
         } else {
             emit InvalidBid();
             require(false, E_INVALID_BID);
+            // TODO: refund bidder
         }
     }
 
-    // Once the auction has ended, this function emits the winner
-    // and destroys itself.
-    // TODO: Winner emission from root
+    // Ends an auction if the bidding time has passed.
     function endAuction() external override {
         tvm.accept();
         if (auctionOver()){
