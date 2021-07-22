@@ -38,6 +38,11 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
     // but the whole logic of the English Auction is described here.
     function newBidIsBetterThan(uint256 old_bid, uint256 new_bid) virtual internal returns (bool);
 
+    // Processes the winner
+    // In Forward, transfer the vault content to the auctioneer
+    // In Reverse, transfer some of the vault content to the seller
+    function processWinner(Bidder) internal virtual;
+
     // Checks if the auction is over.
     // It can either have reached the time limit of the auction or have 
     // no transaction after some time.
@@ -66,7 +71,7 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
             if (already_has_a_bidder){
                 Bidder old = best_bidder.get();
                 IBid(old.bid_contract).
-                    transferVaultContent{value:0, flag: 128}(old.bidder);
+                    transferVaultContent{value:0, flag: 128}(old.bidder, 0);
             }
             best_bidder.set(new_bidder);
 
@@ -78,25 +83,14 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
     }
 
     // Starts the bid process
+    // In Forward, commitment = amount of bid
+    // In Reverse, commitment = address
+    // In Blind, commitment = hash(salt, amount)
+    // In Blind Reverse, commitment = hash(salt, address)
     function bid(uint256 commitment) external override {
         tvm.accept();
-        require (!auctionOver(), E_AUCTION_OVER);
-        uint256 current_price;
- 
-        if (best_bidder.hasValue()) {
-            current_price = best_bidder.get().bid;
-        } else {
-            current_price = s_starting_price;
-        }
-
-        if (newBidIsBetterThan(current_price, commitment)) {    
-            IBidBuilder(s_bid_builder_address).
-                deployBid{value:0, flag: 128}(commitment);
-        } else {
-            emit InvalidBid();
-            require(false, E_INVALID_BID);
-            // TODO: refund bidder
-        }
+        IBidBuilder(s_bid_builder_address).
+            deployBid{value:0, flag: 128}(commitment);
     }
 
     // Ends an auction if the bidding time has passed.
@@ -106,11 +100,7 @@ abstract contract VEnglishAuction is Constants, IAuction, Buildable {
             if (best_bidder.hasValue()) {
                 Bidder b = best_bidder.get();
                 emit Winner(b.bidder, b.bid);
-                // TODO: check value parameters
-                IBid(b.bid_contract).
-                    transferVaultContent{value:0.1 ton}(s_owner);
-                IProcessWinner(s_winner_processor_address).
-                    acknowledgeWinner{value:0.2 ton}(b);
+                processWinner(b);
             } else {
                 IProcessWinner(s_winner_processor_address).
                     acknowledgeNoWinner{value:0, flag: 128}();

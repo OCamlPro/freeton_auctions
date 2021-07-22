@@ -41,28 +41,31 @@ abstract contract VDutchAuction is Constants, Buildable, IAuction {
     //   current price.
     function betterPriceThanCurrent(uint256) internal virtual returns(bool);
 
+    // Processes the winner
+    // In Forward, transfer the vault content to the auctioneer
+    // In Reverse, transfer some of the vault content to the seller
+    function processWinner(Bidder) internal virtual;
+
     // Validates a bid.
     // In the Dutch version, a valid bid automatically ends the auction
     function validateBid(Bidder auction_winner) external override onlyFrom(s_bid_builder_address) {
         tvm.accept ();
         if (betterPriceThanCurrent(auction_winner.bid)){
-            IProcessWinner(s_winner_processor_address).
-                acknowledgeWinner{value:0.2 ton}(auction_winner);
-            IBid(auction_winner.bid_contract).transferVaultContent{value:0.2 ton}(s_owner);
+            emit Winner(auction_winner.bidder, auction_winner.bid);
+            processWinner(auction_winner);
         } else {
             emit InvalidBid();
         }
     }
 
     // Starts the bid process
+    // In Forward, commitment = amount of bid
+    // In Reverse, commitment = address
+    // In Blind, commitment = hash(salt, amount)
+    // In Blind Reverse, commitment = hash(salt, address)
     function bid(uint256 commitment) external override {
-        tvm.accept();
-        if (betterPriceThanCurrent(commitment)){
-          IBidBuilder(s_bid_builder_address).
-            deployBid{value: 0, flag: 128}(commitment);
-        } else {
-            emit InvalidBid();
-        }
+        IBidBuilder(s_bid_builder_address).
+          deployBid{value: 0, flag: 128}(commitment);
     }
     
     // Ends an auction.

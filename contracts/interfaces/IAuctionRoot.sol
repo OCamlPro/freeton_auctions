@@ -7,15 +7,28 @@ interface IAuctionRoot{
     function setDutchCode(TvmCell code) external;
     function setDutchReverseCode(TvmCell code) external;
     function setBidBuilderCode(TvmCell code) external;
+    function setRevBidBuilderCode(TvmCell code) external;
     function init(
         address english_auction, 
         address english_reverse_auction, 
         address dutch_auction, 
         address dutch_reverse_auction, 
-        address bid_builder
+        address bid_builder,
+        address rev_bid_builder
     ) external pure;
 
-    function initBidBuilder(address bid_builder, address auction_address) external view;
+    function initBidBuilder(
+        address bid_builder, 
+        address auction_address,
+        bool blind
+    ) external view;
+
+    function initRevBidBuilder(
+        address bid_builder, 
+        address auction_address,
+        bool blind,
+        address winner_processor_ref
+    ) external view;
 
     function deployDutchAuction(
         address root_wallet,
