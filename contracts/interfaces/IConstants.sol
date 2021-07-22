@@ -7,6 +7,7 @@ interface IConstants{
         uint256 bid;
         address bid_contract;
         address bid_vault;
+        address bid_process_winner;
     }
 
     event Winner(address, uint256);

@@ -6,7 +6,9 @@ import "DutchReverseAuction.sol";
 import "EnglishAuction.sol";
 import "EnglishReverseAuction.sol";
 import "interfaces/IBidBuilder.sol";
+import "interfaces/IReverseBidBuilder.sol";
 import "BidBuilder.sol";
+import "ReverseBidBuilder.sol";
 import "interfaces/IAuctionRoot.sol";
 
 contract AuctionRoot is Constants, IAuctionRoot {
@@ -20,6 +22,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
     optional(TvmCell) s_dutch_code; // The Dutch Auction code
     optional(TvmCell) s_dutch_reverse_code; // The Dutch Reverse Auction code
     optional(TvmCell) s_bid_builder_code; // The BidBuilder code
+    optional(TvmCell) s_rev_bid_builder_code; // The ReverseBidBuilder code
 
     uint256 id; // A counter for giving unique IDs to auctions 
 
@@ -78,13 +81,21 @@ contract AuctionRoot is Constants, IAuctionRoot {
         emit Ok();
     }
 
+    // Sets the ReverseBidBuilder code
+    function setRevBidBuilderCode(TvmCell code) override external uninitialized(s_rev_bid_builder_code){
+        tvm.accept();
+        s_rev_bid_builder_code.set(code);
+        emit Ok();
+    }
+
     // Initializes the different contract variables storing the contract codes.
     function init(
         address english_auction, 
         address english_reverse_auction, 
         address dutch_auction, 
         address dutch_reverse_auction,
-        address bid_builder
+        address bid_builder,
+        address rev_bid_builder
         ) pure override external{
         tvm.accept();
         IBuildable(english_auction).thisIsMyCode{value:1 ton, callback: this.setEnglishCode}();
@@ -92,15 +103,32 @@ contract AuctionRoot is Constants, IAuctionRoot {
         IBuildable(dutch_auction).thisIsMyCode{value:1 ton, callback: this.setDutchCode}();
         IBuildable(dutch_reverse_auction).thisIsMyCode{value:1 ton, callback: this.setDutchReverseCode}();
         IBuildable(bid_builder).thisIsMyCode{value:1 ton, callback: this.setBidBuilderCode}();
+        IBuildable(rev_bid_builder).thisIsMyCode{value:1 ton, callback: this.setRevBidBuilderCode}();
     }
 
     // Deploys a Bid Builder.
     // A bid builder requires a root wallet, whose interface is IRootWallet.
-    function deployBidBuilder(address root_wallet) internal returns (address){
+    function deployBidBuilder(address root_wallet, address winner_processor) internal returns (address){
         IBidBuilder b = new BidBuilder
         {
             value: 0.4 ton,
             code: s_bid_builder_code.get(),
+            varInit:{
+                s_root_wallet: root_wallet,
+                s_auction_id: id,
+                s_winner_processor: winner_processor
+            }
+        }();
+        return address(b);
+    }
+
+    // Deploys a reverse Bid Builder.
+    // A bid builder requires a root wallet, whose interface is IRootWallet.
+    function deployRevBidBuilder(address root_wallet) internal returns (address){
+        IReverseBidBuilder b = new ReverseBidBuilder
+        {
+            value: 0.4 ton,
+            code: s_rev_bid_builder_code.get(),
             varInit:{
                 s_root_wallet: root_wallet,
                 s_auction_id: id
@@ -126,6 +154,24 @@ contract AuctionRoot is Constants, IAuctionRoot {
         );
     }
 
+    // Initializes a BidBuilder for a reverse auction.
+    // Initialization could be performed during deployment, but it requires the address
+    // of the auction that also needs the address of the BidBuilder.
+    // Calculating the BidBuilder address before its deployment would avoid calling this function
+    function initRevBidBuilder(address bid_builder, address auction_address, bool blind, address winner_processor_ref) view override external{
+        address bid_reference;
+        if (blind) {
+            bid_reference = s_blind_bid_address_reference;
+        } else {
+            bid_reference = s_bid_address_reference;
+        }
+        IReverseBidBuilder(bid_builder).init{value:0, flag: 128}(
+            bid_reference,
+            auction_address,
+            winner_processor_ref
+        );
+    }
+
     // Deploys a Dutch Auction and its associated BidBuilder.
     function deployDutchAuction(
         address root_wallet,
@@ -136,7 +182,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
         uint256 time_delta
         ) override external atLeast(2 ton) {
         tvm.accept();
-        address bid_builder = deployBidBuilder(root_wallet);
+        address bid_builder = deployBidBuilder(root_wallet, winner_processor);
         DutchAuction c = 
             new DutchAuction {
                 value: 1 ton,
@@ -167,7 +213,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
         uint256 price_delta, 
         uint256 time_delta) override external atLeast(1 ton) {
         tvm.accept();
-        address bid_builder = deployBidBuilder(root_wallet);
+        address bid_builder = deployRevBidBuilder(root_wallet);
         DutchReverseAuction c = 
           new DutchReverseAuction
             {
@@ -199,7 +245,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
         uint256 max_tick, 
         uint256 max_time) override external atLeast(1 ton) {
         tvm.accept();
-        address bid_builder = deployBidBuilder(root_wallet);
+        address bid_builder = deployBidBuilder(root_wallet, winner_processor);
         EnglishAuction c = 
           new EnglishAuction
             {
@@ -230,7 +276,7 @@ contract AuctionRoot is Constants, IAuctionRoot {
         uint256 max_tick, 
         uint256 max_time) override external atLeast(1 ton) {
         tvm.accept();
-        address bid_builder = deployBidBuilder(root_wallet);
+        address bid_builder = deployRevBidBuilder(root_wallet);
         EnglishReverseAuction c = 
           new EnglishReverseAuction
             {

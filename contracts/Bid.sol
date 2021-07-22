@@ -29,6 +29,9 @@ contract Bid is Constants, Buildable {
     // Root wallet
     address static s_root_wallet;
 
+    // Winner processor
+    address static s_winner_processor;
+
     // The vault address.
     optional(address) vault_address;
 
@@ -72,8 +75,15 @@ contract Bid is Constants, Buildable {
             }(s_bidder, vault_address.get(), s_commitment, s_id);
     }
 
-    function transferVaultContent(address dest) public view onlyFrom(s_auction){
+    // Transfers the content of the vault.
+    // It can go to the auctioneer if this bid correspond to the winning bid, 
+    // otherwise it goes to the bidder.
+    function transferVaultContent(address dest, uint256 amount) public view onlyFrom(s_auction){
         uint128 grams = 10000;
-        IVault(vault_address.get()).transfer(dest, s_commitment, grams);
+        if (amount == 0) {
+            IVault(vault_address.get()).transfer(dest, s_commitment, grams);
+        } else {
+            IVault(vault_address.get()).transfer(dest, amount, grams);
+        }
     }
 }
