@@ -17,6 +17,21 @@ interface IRootTokenContract {
 
 
 interface ITONTokenWallet {
+
+
+    struct ITONTokenWalletDetails {
+        address root_address;
+        uint256 wallet_public_key;
+        address owner_address;
+        uint128 balance;
+
+        address receive_callback;
+        address bounced_callback;
+        bool allow_non_notifiable;
+    }
+    function getDetails() external view responsible returns (ITONTokenWalletDetails);
+
+  
     function setReceiveCallback(address receive_callback,
                                 bool allow_non_notifiable) external;
 
@@ -61,17 +76,20 @@ library CONST {
   uint8 constant EXN_ALREADY_INITIALIZED = 106 ;
   uint8 constant EXN_INVALID_DURATION    = 107 ;
   uint8 constant EXN_NOT_ENOUGH_BALANCE  = 108 ;
-
-}
-
-abstract contract V_OCP_Auction is ITokensReceivedCallback {
-
-  event Winner( address g_winner_address, uint256 g_winner_pubkey );
-
+  uint8 constant EXN_ALREADY_BIDDING     = 109 ;
+  
   uint128 constant MINIMAL_INITIAL_BALANCE = 1 ton ;
   uint128 constant DEPLOY_WALLET_GRAMS = 0.5 ton ;
   uint128 constant QUERY_ADDRESS_GRAMS = 0.1 ton ;
   uint128 constant TRANSFER_GRAMS = 0.1 ton ;
+  uint128 constant MINIMAL_FEE = 0.5 ton ;
+
+}
+
+
+abstract contract V_OCP_Auction is ITokensReceivedCallback {
+
+  event Winner( address g_winner_address, uint256 g_winner_pubkey );
 
   struct Auction {
     uint256 id ;
@@ -80,6 +98,10 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
     uint256 owner_pubkey ;
     uint256 time_stop ;
     address root_wallet ;
+    address auction_wallet ;
+    bool reverse ;
+    address root_vault ;
+    address owner_vault;
     address winner_address ;
     uint256 winner_pubkey ;
     string kind ;
@@ -96,7 +118,7 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
   uint256 g_time_stop;
   address g_root_wallet ;
   address g_auction_wallet ;
-
+  
   address g_winner_address ;
   uint256 g_winner_pubkey ;
 
@@ -105,16 +127,22 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
   string g_title ;
   string g_description ;
 
+  // reverse auctions
+  bool g_reverse ;
+  address g_root_vault ; // the kind of merchandise being bought
+  address g_owner_vault ; // the auction vault were the merchandise should be store
+  
   function _init_auction(
                          string kind,
                          uint256 owner_pubkey,
                          address owner_address,
                          address root_wallet,
-                         uint256 time_stop
+                         uint256 time_stop,
+                         address owner_vault
            ) internal
   {
 
-    require( address(this).balance >= MINIMAL_INITIAL_BALANCE
+    require( address(this).balance >= CONST.MINIMAL_INITIAL_BALANCE
              , CONST.EXN_NOT_ENOUGH_BALANCE );
 
     require( g_owner_pubkey == 0 && g_owner_address.value == 0
@@ -130,8 +158,7 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
       owner_address = s_owner_address ;
     }
 
-    require(
-            time_stop >= now
+    require( time_stop >= now
             , CONST.EXN_INVALID_ARGUMENT );
 
     tvm.accept();
@@ -143,14 +170,15 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
 
     if ( g_root_wallet.value != 0 ){
 
-      IRootTokenContract( g_root_wallet ).deployEmptyWallet(
-                                                          DEPLOY_WALLET_GRAMS,
-                                                          0,
-                                                          address(this),
-                                                          address(this)
-                                                          ) ;
+      IRootTokenContract( g_root_wallet ).
+        deployEmptyWallet(
+                          CONST.DEPLOY_WALLET_GRAMS,
+                          0,
+                          address(this),
+                          address(this)
+                          ) ;
       IRootTokenContract( g_root_wallet ).getWalletAddress{
-          value: QUERY_ADDRESS_GRAMS,
+          value: CONST.QUERY_ADDRESS_GRAMS,
           callback:set_wallet_address
       }(
                                                               0,
@@ -158,6 +186,24 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
                                                               );
 
     }
+
+    if ( owner_vault.value != 0 ){
+
+      g_reverse = true ;
+      g_owner_vault = owner_vault ;
+      ITONTokenWallet( owner_vault ).getDetails{
+        value: CONST.QUERY_ADDRESS_GRAMS,
+        callback:set_root_vault
+      }();
+
+    }
+  }
+
+  function set_root_vault(ITONTokenWallet.ITONTokenWalletDetails details) public
+  {
+    require( msg.sender.value != 0 && msg.sender == g_owner_vault,
+             CONST.EXN_AUTH_FAILED );
+    g_root_vault = details.root_address ;
   }
 
   function set_wallet_address( address wallet_address ) public
@@ -188,12 +234,10 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
                                   TvmCell /*payload*/
     ) public override
   {
-    require( g_auction_wallet.value != 0
-             && msg.sender == g_auction_wallet
-             , CONST.EXN_AUTH_FAILED );
-    tvm.accept() ;
+    require( msg.sender.value != 0, CONST.EXN_AUTH_FAILED );
+    require( msg.sender == g_auction_wallet , CONST.EXN_AUTH_FAILED );
     _tokens_received( amount, sender_wallet,
-                      sender_public_key, sender_address );
+                        sender_public_key, sender_address );
   }
 
   function _only_after_close( ) internal view
@@ -233,8 +277,9 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
 
   function _only_owner_or_winner( ) internal view
   {
-    if ( g_automatic_winner &&
-         ( g_winner_address.value == 0
+    if ( g_automatic_winner
+         && !g_reverse
+         && ( g_winner_address.value == 0
            && g_winner_pubkey == 0 ) ){
       // no winner, winner is automatically former owner
       _only_owner() ;
@@ -279,6 +324,10 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
 
                 g_time_stop ,
                 g_root_wallet ,
+                g_auction_wallet ,
+                g_reverse ,
+                g_root_vault ,
+                g_owner_vault ,
 
                 g_winner_address ,
                 g_winner_pubkey ,
@@ -313,13 +362,6 @@ abstract contract V_OCP_AuctionSetcode is V_OCP_Auction {
 
 abstract contract V_OCP_DutchAuction is V_OCP_Auction {
 
-  uint8 constant STATUS_NOT_STARTED      = 0 ;
-  uint8 constant STATUS_STARTED          = 1 ;
-  uint8 constant STATUS_WON              = 2 ;
-  uint8 constant STATUS_NO_WINNER        = 3 ;
-
-  uint128 constant MINIMAL_FEE = 0.5 ton ;
-
   uint128 g_price_start; // The starting price
   uint128 g_price_stop; // The limit price
 
@@ -341,7 +383,8 @@ abstract contract V_OCP_DutchAuction is V_OCP_Auction {
                    owner_pubkey,
                    owner_address,
                    root_wallet,
-                   time_stop
+                   time_stop,
+                   address(0)
                    ) ;
     g_price_start = price_start ;
     g_price_stop = price_stop ;
@@ -369,8 +412,8 @@ abstract contract V_OCP_DutchAuction is V_OCP_Auction {
       if( msg.sender != g_owner_address ){
 
         require( g_root_wallet.value == 0, CONST.EXN_WRONG_TOKEN );
-        require( msg.value > MINIMAL_FEE, CONST.EXN_NOT_ENOUGH_VALUE );
-        uint128 proposed_price = msg.value - MINIMAL_FEE ;
+        require( msg.value > CONST.MINIMAL_FEE, CONST.EXN_NOT_ENOUGH_VALUE );
+        uint128 proposed_price = msg.value - CONST.MINIMAL_FEE ;
         if( _is_better_price ( proposed_price  ) ){
           g_time_stop = now ;
           g_winner_address = msg.sender ;
@@ -400,26 +443,28 @@ abstract contract V_OCP_DutchAuction is V_OCP_Auction {
       g_winner_pubkey = sender_public_key ;
       emit Winner( g_winner_address, g_winner_pubkey );
 
-      ITONTokenWallet( g_auction_wallet ).transfer (
-                                                    g_owner_address,
-                                                    amount,
-                                                    TRANSFER_GRAMS,
-                                                    address(this),
-                                                    true,
-                                                    empty
-                                                    );
+      ITONTokenWallet( g_auction_wallet ).
+        transfer (
+                  g_owner_address,
+                  amount,
+                  CONST.TRANSFER_GRAMS,
+                  address(this),
+                  true,
+                  empty
+                  );
       ITONTokenWallet( g_auction_wallet ).destroy ( g_owner_address );
     } else {
 
-      ITONTokenWallet( g_auction_wallet ).transfer (
-                                                    sender_wallet,
-                                                    amount,
-                                                    TRANSFER_GRAMS,
-                                                    address(this),
-                                                    true,
-                                                    empty
-                                                    );
-
+      ITONTokenWallet( g_auction_wallet ).
+        transfer (
+                  sender_wallet,
+                  amount,
+                  CONST.TRANSFER_GRAMS,
+                  address(this),
+                  true,
+                  empty
+                  );
+      
     }
   }
 
@@ -497,60 +542,6 @@ contract V_OCP_AutomaticDutchAuction is V_OCP_DutchAuction {
     }
   }
 
-}
-
-contract OCP_AutomaticDutchAuction is V_OCP_AutomaticDutchAuction {
-
-  constructor (
-              uint256 owner_pubkey,
-              address owner_address,
-              address root_wallet,
-              uint128 price_start,
-              uint128 price_stop,
-              uint256 time_start,
-              uint128 price_delta,
-              uint256 time_delta
-              )  public
-    {
-      _init_automatic_dutch_auction(
-                                 "",
-                                 owner_pubkey,
-                                 owner_address,
-                                 root_wallet,
-                                 price_start,
-                                 price_stop,
-                                 time_start,
-                                 price_delta,
-                                 time_delta
-                                );
-    }
-}
-
-contract OCP_AutomaticDutchAuctionSetcode is
-  V_OCP_AutomaticDutchAuction, V_OCP_AuctionSetcode {
-  constructor (
-              uint256 owner_pubkey,
-              address owner_address,
-              address root_wallet,
-              uint128 price_start,
-              uint128 price_stop,
-              uint256 time_start,
-              uint128 price_delta,
-              uint256 time_delta
-              )  public
-    {
-      _init_automatic_dutch_auction(
-                                 "setcode ",
-                                 owner_pubkey,
-                                 owner_address,
-                                 root_wallet,
-                                 price_start,
-                                 price_stop,
-                                 time_start,
-                                 price_delta,
-                                 time_delta
-                                 );
-    }
 }
 
 
@@ -652,68 +643,14 @@ abstract contract V_OCP_ManualDutchAuction is V_OCP_DutchAuction {
 
 }
 
-contract OCP_ManualDutchAuction is V_OCP_ManualDutchAuction {
-
-  constructor (
-               uint256 owner_pubkey,
-               address owner_address,
-               address root_wallet,
-               uint256 time_stop,
-               uint128 price_start,
-               uint128 price_stop,
-               uint256 auction_house_pubkey,
-               address auction_house_address
-               ) public
-         {
-           _init_manual_dutch_auction (
-                                       "",
-                                       owner_pubkey,
-                                       owner_address,
-                                       root_wallet,
-                                       time_stop,
-                                       price_start,
-                                       price_stop,
-                                       auction_house_pubkey,
-                                       auction_house_address
-                                       ) ;
-         }
-}
-
-contract OCP_ManualDutchAuctionSetcode is
- V_OCP_ManualDutchAuction, V_OCP_AuctionSetcode {
-
-  constructor (
-               uint256 owner_pubkey,
-               address owner_address,
-               address root_wallet,
-               uint256 time_stop,
-               uint128 price_start,
-               uint128 price_stop,
-               uint256 auction_house_pubkey,
-               address auction_house_address
-               ) public
-    {
-      _init_manual_dutch_auction (
-                                  "setcode ",
-                                  owner_pubkey,
-                                  owner_address,
-                                  root_wallet,
-                                  time_stop,
-                                  price_start,
-                                  price_stop,
-                                  auction_house_pubkey,
-                                  auction_house_address
-                                  ) ;
-    }
-}
 
 abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
 
   uint128 constant MINIMAL_FEE = 0.5 ton ;
 
   uint128 g_price_start ;
+  uint8 g_bid_min_increment ;
   uint256 g_time_delay ;
-
   bool g_need_refund ;
   uint256 g_time_max ;
   uint128 g_current_price ;
@@ -728,7 +665,9 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
                                address root_wallet,
                                uint256 time_stop,
                                uint128 price_start,
-                               uint256 time_delay
+                               uint8 bid_min_increment,
+                               uint256 time_delay,
+                               address owner_vault
            ) internal
   {
     _init_auction (
@@ -736,13 +675,19 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
                    owner_pubkey,
                    owner_address,
                    root_wallet,
-                   time_stop
+                   time_stop,
+                   owner_vault
                    ) ;
     g_price_start = price_start ;
     g_time_delay = time_delay ;
     g_time_max = time_stop ;
     g_current_price = price_start ;
+    g_bid_min_increment = bid_min_increment ;
   }
+
+
+  function transfer_funds_to_owner() internal virtual ;
+  function refund_previous_bidder() internal virtual ;
 
   function commit() public
   {
@@ -755,52 +700,12 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
       g_need_refund = false ;
       g_owner_address = g_bid_sender_address ;
       g_owner_pubkey = g_bid_sender_pubkey ;
-      if ( g_root_wallet.value == 0 ) {
-        g_owner_address.transfer( g_current_price, false, 0 );
-      } else {
-        TvmCell empty ;
-        ITONTokenWallet( g_auction_wallet ).transfer (
-                                                      g_owner_address,
-                                                      g_current_price,
-                                                      TRANSFER_GRAMS,
-                                                      address(this),
-                                                      true,
-                                                      empty
-                                                      );
+      transfer_funds_to_owner();
+      if( g_root_wallet.value != 0 ){
         ITONTokenWallet( g_auction_wallet ).destroy ( g_owner_address );
       }
     } else {
       g_automatic_winner = true ;
-    }
-  }
-
-  receive() external
-  {
-    if( now > g_time_stop ){
-
-      require( msg.sender == g_winner_address
-               || msg.sender == g_owner_address
-               , CONST.EXN_AUCTION_CLOSED );
-      
-    } else {
-
-      if( msg.sender != g_owner_address ){
-
-        require( g_root_wallet.value == 0, CONST.EXN_WRONG_TOKEN );
-        require( msg.value > MINIMAL_FEE, CONST.EXN_NOT_ENOUGH_VALUE );
-        uint128 proposed_price = msg.value - MINIMAL_FEE ;
-        if( proposed_price > g_current_price  ){
-
-          _accept_bid(
-                      proposed_price ,
-                      msg.sender ,
-                      0 ,
-                      msg.sender
-                      );
-        } else {
-          msg.sender.transfer(0, false, 64);
-        }
-      }
     }
   }
 
@@ -812,19 +717,7 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
                        ) internal
   {
     if( g_need_refund ){
-      if ( g_root_wallet.value == 0 ){
-        g_bid_sender_address.transfer( g_current_price, false, 0 );
-      } else {
-        TvmCell empty ;
-        ITONTokenWallet( g_auction_wallet ).transfer (
-                                                      g_bid_sender_wallet,
-                                                      g_current_price,
-                                                      TRANSFER_GRAMS,
-                                                      address(this),
-                                                      true,
-                                                      empty
-                                                      );
-      }
+      refund_previous_bidder ( );
     }
     g_need_refund = true ;
     g_current_price = proposed_price ;
@@ -835,6 +728,81 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
       g_time_stop = now + g_time_delay ;
       if ( g_time_stop > g_time_max ){
         g_time_stop = g_time_max ;
+      }
+    }
+  }
+
+  function get() public view
+    returns ( Auction a,
+              uint128 price_start,
+              uint8 bid_min_increment,
+              uint256 time_delay
+              )
+  {
+    a = _get_auction() ;
+    price_start = g_price_start ;
+    time_delay = g_time_delay ;
+    bid_min_increment = g_bid_min_increment ;
+  }
+  
+}
+  
+abstract contract V_OCP_DirectEnglishAuction is V_OCP_EnglishAuction {
+
+  function send_collected_fund( address target ) internal view
+  {
+      if ( g_root_wallet.value == 0 ) {
+        target.transfer( g_current_price, false, 0 );
+      } else {
+        TvmCell empty ;
+        ITONTokenWallet( g_auction_wallet ).
+          transfer (
+                    target,
+                    g_current_price,
+                    CONST.TRANSFER_GRAMS,
+                    address(this),
+                    true,
+                    empty
+                    );
+      }
+  }
+
+  function transfer_funds_to_owner() internal override
+  {
+    send_collected_fund ( g_owner_address );
+  }
+
+  function refund_previous_bidder() internal override
+  {
+    send_collected_fund ( g_bid_sender_wallet );
+  }
+
+  receive() external
+  {
+    if( now > g_time_stop ){
+
+      require( msg.sender == g_winner_address
+               || msg.sender == g_owner_address
+               , CONST.EXN_AUCTION_CLOSED );
+    } else {
+
+      if( msg.sender != g_owner_address ){
+
+        require( g_root_wallet.value == 0, CONST.EXN_WRONG_TOKEN );
+        require( msg.value > MINIMAL_FEE, CONST.EXN_NOT_ENOUGH_VALUE );
+        uint128 proposed_price = msg.value - MINIMAL_FEE ;
+        if( proposed_price >
+        g_current_price + ( g_current_price * g_bid_min_increment / 100 )  ){
+
+          _accept_bid(
+                      proposed_price ,
+                      msg.sender ,
+                      0 ,
+                      msg.sender
+                      );
+        } else {
+          msg.sender.transfer(0, false, 64);
+        }
       }
     }
   }
@@ -857,76 +825,19 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
 
     } else {
 
-      ITONTokenWallet( g_auction_wallet ).transfer (
-                                                    sender_wallet,
-                                                    amount,
-                                                    TRANSFER_GRAMS,
-                                                    address(this),
-                                                    true,
-                                                    empty
-                                                    );
+      ITONTokenWallet( g_auction_wallet ).
+        transfer (
+                  sender_wallet,
+                  amount,
+                  CONST.TRANSFER_GRAMS,
+                  address(this),
+                  true,
+                  empty
+                  );
 
     }
   }
 
-  function get() public view
-    returns ( Auction a,
-              uint128 price_start,
-              uint256 time_delay
-              )
-  {
-    a = _get_auction() ;
-    price_start = g_price_start ;
-    time_delay = g_time_delay ;
-  }
-
 }
 
-
-contract OCP_EnglishAuction is V_OCP_EnglishAuction {
-
-  constructor (
-               uint256 owner_pubkey,
-               address owner_address,
-               address root_wallet,
-               uint256 time_stop,
-               uint128 price_start,
-               uint256 time_delay
-               ) public
-         {
-           _init_english_auction (
-                                       "",
-                                       owner_pubkey,
-                                       owner_address,
-                                       root_wallet,
-                                       time_stop,
-                                       price_start,
-                                       time_delay
-                                       ) ;
-         }
-}
-
-contract OCP_EnglishAuctionSetcode is
-V_OCP_EnglishAuction, V_OCP_AuctionSetcode {
-  
-  constructor (
-               uint256 owner_pubkey,
-               address owner_address,
-               address root_wallet,
-               uint256 time_stop,
-               uint128 price_start,
-               uint256 time_delay
-               ) public
-         {
-           _init_english_auction (
-                                       "setcode ",
-                                       owner_pubkey,
-                                       owner_address,
-                                       root_wallet,
-                                       time_stop,
-                                       price_start,
-                                       time_delay
-                                       ) ;
-         }
-}
 

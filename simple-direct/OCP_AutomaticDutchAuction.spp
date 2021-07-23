@@ -1,1 +1,28 @@
 import "OCP_DirectAuctions.spp";
+
+contract OCP_AutomaticDutchAuction is V_OCP_AutomaticDutchAuction {
+
+  constructor (
+              uint256 owner_pubkey,
+              address owner_address,
+              address root_wallet,
+              uint128 price_start,
+              uint128 price_stop,
+              uint256 time_start,
+              uint128 price_delta,
+              uint256 time_delta
+              )  public
+    {
+      _init_automatic_dutch_auction(
+                                 "",
+                                 owner_pubkey,
+                                 owner_address,
+                                 root_wallet,
+                                 price_start,
+                                 price_stop,
+                                 time_start,
+                                 price_delta,
+                                 time_delta
+                                );
+    }
+}

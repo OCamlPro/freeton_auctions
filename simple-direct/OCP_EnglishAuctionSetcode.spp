@@ -1,1 +1,30 @@
 import "OCP_DirectAuctions.spp";
+
+contract OCP_EnglishAuctionSetcode is
+V_OCP_DirectEnglishAuction, V_OCP_AuctionSetcode {
+  
+  constructor (
+               uint256 owner_pubkey,
+               address owner_address,
+               address root_wallet,
+               uint256 time_stop,
+               uint128 price_start,
+               uint8 bid_min_increment,
+               uint256 time_delay
+               ) public
+         {
+           _init_english_auction (
+                                       "setcode ",
+                                       owner_pubkey,
+                                       owner_address,
+                                       root_wallet,
+                                       time_stop,
+                                       price_start,
+                                       bid_min_increment,
+                                       time_delay,
+                                       address(0)
+                                       ) ;
+         }
+}
+
+

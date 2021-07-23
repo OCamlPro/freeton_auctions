@@ -1,0 +1,278 @@
+import "OCP_DirectAuctions.spp";
+
+interface IOCP_ReverseAuction {
+
+  function bid( uint128 amount,
+                address bidder_wallet,
+                uint256 bidder_pubkey,
+                address bidder_vault ) external;
+
+}
+
+contract OCP_AuctionBidder is ITokensReceivedCallback {
+
+  // tvm.pubkey() == s_bidder_pubkey
+  address static s_bidder_wallet ;
+  address static s_auction ;
+
+  address g_root_vault ;
+  address g_bidder_vault ;
+
+  uint128 g_bidder_vault_balance ;
+  uint128 g_bidder_vault_target ;
+
+  bool g_locked ;
+  
+  constructor (
+               address root_vault,
+               uint128 bidder_vault_target
+               ) public
+    {
+      require( address(this).balance >= CONST.MINIMAL_INITIAL_BALANCE,
+               CONST.EXN_NOT_ENOUGH_BALANCE );
+      tvm.accept();
+      g_root_vault = root_vault ;
+      g_bidder_vault_target = bidder_vault_target ;
+      IRootTokenContract( g_root_vault ).
+        deployEmptyWallet(
+                          CONST.DEPLOY_WALLET_GRAMS,
+                          0,
+                          address(this),
+                          address(this)
+                          ) ;
+      IRootTokenContract( g_root_vault ).getWalletAddress{
+          value: CONST.QUERY_ADDRESS_GRAMS,
+          callback:set_vault_address
+          }(
+            0,
+            address(this)
+            );
+    }
+
+  function set_vault_address( address bidder_vault ) public
+  {
+    require( msg.sender.value != 0 && msg.sender == g_root_vault,
+             CONST.EXN_AUTH_FAILED );
+    g_bidder_vault = bidder_vault ;
+    ITONTokenWallet( g_bidder_vault ).
+      setReceiveCallback( address(this), false );
+  }
+
+  function tokensReceivedCallback(
+                                  address /*token_wallet*/,
+                                  address /*token_root*/,
+                                  uint128 amount,
+                                  uint256 /* sender_public_key */,
+                                  address /* sender_address */,
+                                  address sender_wallet,
+                                  address /*original_gas_to*/,
+                                  uint128 /*updated_balance*/,
+                                  TvmCell /*payload*/
+    ) public override
+  {
+    require( g_bidder_vault.value != 0
+             && msg.sender == g_bidder_vault
+             , CONST.EXN_AUTH_FAILED );
+    TvmCell empty ;
+    g_bidder_vault_balance += amount ;
+    if( g_bidder_vault_balance > g_bidder_vault_target ){
+
+      ITONTokenWallet( g_bidder_vault ).
+        transfer(
+                 sender_wallet,
+                 g_bidder_vault_balance - g_bidder_vault_target,
+                 0,
+                 address(this),
+                 true,
+                 empty
+                 );
+    }
+  }
+
+
+  function bid( uint128 amount ) public 
+  {
+    require( tvm.pubkey() == msg.pubkey (), CONST.EXN_AUTH_FAILED );
+    require( g_bidder_vault_target <= g_bidder_vault_balance,
+             CONST.EXN_NOT_ENOUGH_BALANCE );
+    require( !g_locked, CONST.EXN_ALREADY_BIDDING );
+    tvm.accept() ;
+    g_locked = true ;
+    IOCP_ReverseAuction( s_auction ).
+      bid( amount, s_bidder_wallet, tvm.pubkey(), g_bidder_vault );
+  }
+
+  function unbid(  ) public
+  {
+    require ( msg.sender.value != 0 && msg.sender == s_auction,
+              CONST.EXN_AUTH_FAILED );
+    g_locked = false ;
+  }
+
+  function empty_vault ( address owner_vault ) public
+  {
+    require( msg.pubkey() == tvm.pubkey(), CONST.EXN_AUTH_FAILED );
+    tvm.accept();
+    TvmCell empty ;
+    ITONTokenWallet( g_bidder_vault ).
+        transfer(
+                 owner_vault,
+                 g_bidder_vault_balance,
+                 0,
+                 address(this),
+                 true,
+                 empty
+                 );
+    g_bidder_vault_balance = 0;
+  }
+
+  function transfer ( address owner_vault ) public
+  {
+    require( msg.sender.value != 0 &&
+             msg.sender == s_auction, CONST.EXN_AUTH_FAILED );
+    TvmCell empty;
+    ITONTokenWallet( g_bidder_vault ).
+      transfer(
+               owner_vault,
+               g_bidder_vault_balance,
+               0,
+               address(this),
+               true,
+               empty
+               );
+    g_bidder_vault_balance = 0 ;
+    g_bidder_vault_target = 0 ;
+  }
+
+}
+
+
+
+abstract contract V_OCP_ReverseEnglishAuction is
+         IOCP_ReverseAuction, V_OCP_EnglishAuction {
+
+  uint128 g_auction_wallet_balance ;
+  address g_bid_sender_contract ;
+  uint256 g_bidder_code_hash;
+  uint128 g_bidder_vault_target ;
+
+  TvmCell g_bidder_code ;
+
+  function _init_reverse_english_auction (
+                                          string kind,
+                                          uint256 owner_pubkey,
+                                          address owner_address,
+                                          address root_wallet,
+                                          uint256 time_stop,
+                                          uint128 price_start,
+                                          uint8 bid_min_increment,
+                                          uint256 time_delay,
+                                          address owner_vault,
+                                          uint128 bidder_vault_target,
+                                          uint256 bidder_code_hash
+               ) public
+  {
+    require( bidder_code_hash != 0, CONST.EXN_INVALID_ARGUMENT );
+    _init_english_auction( kind + "reverse ",
+                           owner_pubkey,
+                           owner_address,
+                           root_wallet,
+                           time_stop,
+                           price_start,
+                           bid_min_increment,
+                           time_delay,
+                           owner_vault
+                   );
+    g_bidder_code_hash = bidder_code_hash ;
+    g_bidder_vault_target = bidder_vault_target ;
+  }
+
+  function set_bidder_code( TvmCell code ) public
+  {
+    require( g_bidder_code_hash != 0, CONST.EXN_INVALID_ARGUMENT );
+    require( tvm.hash(code) == g_bidder_code_hash,
+             CONST.EXN_INVALID_ARGUMENT );
+    tvm.accept();
+    g_bidder_code = code ;
+    g_bidder_code_hash = 0 ;
+  }
+
+  function transfer_funds_to_owner() internal override
+  {
+    TvmCell empty;
+    OCP_AuctionBidder( g_bid_sender_contract ).
+      transfer( g_owner_vault );
+    ITONTokenWallet( g_auction_wallet ).
+      transfer(
+               g_bid_sender_wallet,
+               g_current_price,
+               CONST.TRANSFER_GRAMS,
+               address(this),
+               true,
+               empty
+               );
+    ITONTokenWallet( g_auction_wallet ).
+      transfer(
+               g_owner_address,
+               g_auction_wallet_balance - g_current_price,
+               CONST.TRANSFER_GRAMS,
+               address(this),
+               true,
+               empty
+               );
+  }
+
+  function refund_previous_bidder() internal override
+  {
+    OCP_AuctionBidder( g_bid_sender_contract ).unbid();
+  }
+
+  function _tokens_received( uint128 amount,
+                             address /*sender_wallet*/,
+                             uint256 /*sender_public_key*/,
+                             address /*sender_address*/ ) internal override
+  {
+    g_auction_wallet_balance += amount ;
+  }
+
+  function _calcBidderAddress(
+                              address bidder_wallet,
+                              uint256 bidder_pubkey
+                              ) internal view returns (address addr)
+  {
+    TvmCell stateInit = tvm.buildStateInit({
+        contr: OCP_AuctionBidder,
+      varInit: {
+        s_bidder_wallet: bidder_wallet,
+        s_auction : address(this)
+            },
+          pubkey: bidder_pubkey,
+          code: g_bidder_code
+        });
+
+    addr = address( tvm.hash( stateInit ) );
+  }
+
+  function bid( uint128 amount,
+                address bidder_wallet,
+                uint256 bidder_pubkey,
+                address bidder_vault ) public override
+  {
+    require( msg.value > CONST.MINIMAL_FEE, CONST.EXN_NOT_ENOUGH_VALUE );
+    require( g_bidder_code_hash == 0, CONST.EXN_AUTH_FAILED );
+
+    address addr = _calcBidderAddress( bidder_wallet, bidder_pubkey );
+    require( msg.sender.value != 0
+             && addr == msg.sender, CONST.EXN_AUTH_FAILED );
+
+    if( now < g_time_stop 
+        && amount < g_current_price -
+        ( g_current_price * g_bid_min_increment / 100 ) ){
+      _accept_bid( amount, bidder_wallet, bidder_pubkey, bidder_vault );
+      g_bid_sender_contract = msg.sender ;
+    } else {
+      OCP_AuctionBidder( msg.sender ).unbid();
+    }
+  }
+
+}

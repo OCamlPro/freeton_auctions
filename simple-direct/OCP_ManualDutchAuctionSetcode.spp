@@ -1,1 +1,30 @@
 import "OCP_DirectAuctions.spp";
+
+contract OCP_ManualDutchAuctionSetcode is
+ V_OCP_ManualDutchAuction, V_OCP_AuctionSetcode {
+
+  constructor (
+               uint256 owner_pubkey,
+               address owner_address,
+               address root_wallet,
+               uint256 time_stop,
+               uint128 price_start,
+               uint128 price_stop,
+               uint256 auction_house_pubkey,
+               address auction_house_address
+               ) public
+    {
+      _init_manual_dutch_auction (
+                                  "setcode ",
+                                  owner_pubkey,
+                                  owner_address,
+                                  root_wallet,
+                                  time_stop,
+                                  price_start,
+                                  price_stop,
+                                  auction_house_pubkey,
+                                  auction_house_address
+                                  ) ;
+    }
+}
+

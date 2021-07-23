@@ -1,6 +1,10 @@
-import "OCP_DirectAuctions.spp";
+import "OCP_ReverseAuctions.spp";
 
-contract OCP_EnglishAuction is V_OCP_DirectEnglishAuction {
+contract OCP_ReverseEnglishAuction is
+         V_OCP_ReverseEnglishAuction {
+
+    uint256 constant OCP_AuctionBidder_CODEHASH =
+        0x%{get-code-hash:contract:tvc:OCP_AuctionBidder};
 
   constructor (
                uint256 owner_pubkey,
@@ -9,10 +13,12 @@ contract OCP_EnglishAuction is V_OCP_DirectEnglishAuction {
                uint256 time_stop,
                uint128 price_start,
                uint8 bid_min_increment,
-               uint256 time_delay
+               uint256 time_delay,
+               address owner_vault,
+               uint128 owner_vault_target
                ) public
          {
-           _init_english_auction (
+           _init_reverse_english_auction (
                                        "",
                                        owner_pubkey,
                                        owner_address,
@@ -21,7 +27,12 @@ contract OCP_EnglishAuction is V_OCP_DirectEnglishAuction {
                                        price_start,
                                        bid_min_increment,
                                        time_delay,
-                                       address(0)
+                                       owner_vault,
+                                       owner_vault_target,
+                                       OCP_AuctionBidder_CODEHASH
                                        ) ;
          }
+
 }
+
+
