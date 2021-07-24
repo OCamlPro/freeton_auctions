@@ -1,4 +1,4 @@
-import "OCP_DirectAuctions.spp";
+import "../abstract-contracts/V_OCP_AutomaticDutchAuction.sol";
 
 contract OCP_AutomaticDutchAuction is V_OCP_AutomaticDutchAuction {
 

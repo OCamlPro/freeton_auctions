@@ -1,6 +1,6 @@
-import "OCP_DirectAuctions.spp";
+import "../abstract-contracts/V_OCP_ManualDutchAuction.sol" ;
 
-contract OCP_EnglishAuction is V_OCP_DirectEnglishAuction {
+contract OCP_ManualDutchAuction is V_OCP_ManualDutchAuction {
 
   constructor (
                uint256 owner_pubkey,
@@ -8,20 +8,21 @@ contract OCP_EnglishAuction is V_OCP_DirectEnglishAuction {
                address root_wallet,
                uint256 time_stop,
                uint128 price_start,
-               uint8 bid_min_increment,
-               uint256 time_delay
+               uint128 price_stop,
+               uint256 auction_house_pubkey,
+               address auction_house_address
                ) public
          {
-           _init_english_auction (
+           _init_manual_dutch_auction (
                                        "",
                                        owner_pubkey,
                                        owner_address,
                                        root_wallet,
                                        time_stop,
                                        price_start,
-                                       bid_min_increment,
-                                       time_delay,
-                                       address(0)
+                                       price_stop,
+                                       auction_house_pubkey,
+                                       auction_house_address
                                        ) ;
          }
 }

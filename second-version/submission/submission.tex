@@ -1,0 +1,73 @@
+% !TeX spellcheck = en_US
+\documentclass[10pt,a4paper]{article}
+\usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,
+	urlcolor=gray
+}
+
+\usepackage{xcolor}
+\usepackage{listings}
+
+\input{solidity-highlighting}
+
+\lstdefinestyle{BashInputStyle}{
+	language=bash,
+	basicstyle=\small\sffamily,
+	columns=fullflexible,
+%	backgroundcolor=\color{yellow!20},
+	linewidth=0.9\linewidth,
+	xleftmargin=0.1\linewidth
+}
+
+
+\author{OCamlPro\\Contact: Fabrice Le Fessant\\\em{Telegram: @fabrice\_dune} \\ \small{\url{https://github.com/OCamlPro/devex-26-auctions}}}
+\title{On-line Auctions Implementation}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+\label{sec:intro}
+
+The present document is an official submission to the 19$^{\text{th}}$
+contest\footnote{\url{https://devex.gov.freeton.org/...}}
+of the DevEx governance: {\em On-line Auction Implementation}.
+
+This submission contains two sets of families of on-line auction
+constracts. The first set is for {\em direct auctions}, where a
+merchandise is to sell to the highest bidder, wheras the second set is
+for {\em reverse auctions}, where a merchandise is to buy from the
+lowest bidder.
+
+In each family, we distinguish different kinds of auctions:
+\begin{description}
+  \item[English Auctions:] These auctions are the most common ones,
+    the auction lasts for a given time, starting at a lowest price,
+    bidders send higher bids until there is no time left. The best bid
+    is the winner.
+  \item[Dutch Auctions:] These auctions start from the highest price,
+    and go down until a bidder accepts to buy. The first bidder is the
+    winner. 
+  \end{description}
+
+
+\section{Direct Auctions}
+
+\subsection{Initial Setting}
+
+\section{Reverse Auctions}
+
+\subsection{Initial Setting}
+
+\end{document}
