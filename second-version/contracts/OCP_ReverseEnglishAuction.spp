@@ -1,0 +1,38 @@
+import "../abstract-contracts/V_OCP_ReverseEnglishAuction.sol" ;
+
+contract OCP_ReverseEnglishAuction is
+         V_OCP_ReverseEnglishAuction {
+
+    uint256 constant OCP_AuctionBidder_CODEHASH =
+        0x%{get-code-hash:contract:tvc:OCP_AuctionBidder};
+
+  constructor (
+               uint256 owner_pubkey,
+               address owner_address,
+               address root_wallet,
+               uint256 time_stop,
+               uint128 price_start,
+               uint8 bid_min_increment,
+               uint256 time_delay,
+               address owner_vault,
+               uint128 owner_vault_target
+               ) public
+         {
+           _init_reverse_english_auction (
+                                       "",
+                                       owner_pubkey,
+                                       owner_address,
+                                       root_wallet,
+                                       time_stop,
+                                       price_start,
+                                       bid_min_increment,
+                                       time_delay,
+                                       owner_vault,
+                                       owner_vault_target,
+                                       OCP_AuctionBidder_CODEHASH
+                                       ) ;
+         }
+
+}
+
+

@@ -1,0 +1,100 @@
+import "../libraries/OCP_Constants.sol" ;
+import "../external-interfaces/ITokensReceivedCallback.sol" ;
+import "../external-interfaces/IRootTokenContract.sol" ;
+import "../external-interfaces/ITONTokenWallet.sol" ;
+
+contract OCP_BlindAuctionBid is ITokensReceivedCallback {
+
+  uint256 static s_auction_hash ;
+  address static s_bidder_address ;
+  address g_bidder_address ;
+  uint256 g_bidder_pubkey ;
+  uint256 g_last_payment ;
+  address g_bid_wallet ;
+  uint128 g_bid_wallet_balance ;
+  address g_root_wallet ;
+  constructor (
+               address bidder_address,
+               uint256 bidder_pubkey,
+               address root_wallet )
+    {
+      require(
+              ( msg.sender.value != 0 && s_bidder_address == msg.sender )
+              || ( msg.pubkey() != 0 && msg.pubkey() == tvm.pubkey() ),
+              OCP_Constants.EXN_AUTH_FAILED );
+      require (
+               s_bidder_address.value != 0 || bidder_address.value != 0,
+               OCP_Constants.EXN_INVALID_ARGUMENT );
+      if( bidder_address.value == 0 ){
+        g_bidder_address = s_bidder_address ;
+      } else {
+        g_bidder_address = bidder_address ;
+      }
+      if( bidder_pubkey == 0 ){
+        g_bidder_pubkey = tvm.pubkey() ;
+      } else {
+        g_bidder_pubkey = bidder_pubkey ;
+      }
+
+      if( root_wallet.value != 0 ) {
+
+        g_root_wallet = root_wallet ;
+        IRootTokenContract( g_root_wallet ).
+          deployEmptyWallet(
+                            OCP_Constants.DEPLOY_WALLET_GRAMS,
+                            0,
+                            address(this),
+                            address(this)
+                            ) ;
+        IRootTokenContract( g_root_wallet ).getWalletAddress{
+        value: OCP_Constants.QUERY_ADDRESS_GRAMS,
+            callback:set_wallet_address
+            }(
+              0,
+              address(this)
+              );
+
+      }
+    }
+
+
+  receive() external
+  {
+    if( g_root_wallet.value == 0
+        && msg.sender == g_bidder_address
+        && msg.value > OCP_Constants.MINIMAL_FEE ){
+      g_last_payment = now ;
+      g_bid_wallet_balance += msg.value - OCP_Constants.MINIMAL_FEE ;
+    }
+  }
+
+
+  function set_wallet_address( address wallet_address ) public
+  {
+    require(
+            g_root_wallet.value != 0
+            && msg.sender == g_root_wallet , OCP_Constants.EXN_AUTH_FAILED );
+    tvm.accept() ;
+    g_bid_wallet = wallet_address ;
+    ITONTokenWallet( g_bid_wallet ).
+      setReceiveCallback( address(this), false );
+  }
+
+  function tokensReceivedCallback(
+                                  address /*token_wallet*/,
+                                  address /*token_root*/,
+                                  uint128 amount,
+                                  uint256 sender_public_key,
+                                  address sender_address,
+                                  address sender_wallet,
+                                  address /*original_gas_to*/,
+                                  uint128 /*updated_balance*/,
+                                  TvmCell /*payload*/
+    ) public override
+  {
+    require( msg.sender.value != 0
+             && msg.sender == g_bid_wallet , OCP_Constants.EXN_AUTH_FAILED );
+    g_last_payment = now ;
+  }
+
+}

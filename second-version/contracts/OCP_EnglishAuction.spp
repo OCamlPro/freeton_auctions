@@ -1,0 +1,29 @@
+import "../abstract-contracts/V_OCP_DirectEnglishAuction.sol" ;
+
+contract OCP_EnglishAuction is V_OCP_DirectEnglishAuction {
+
+  constructor (
+               uint256 owner_pubkey,
+               address owner_address,
+               address root_wallet,
+               uint256 time_stop,
+               uint128 price_start,
+               uint8 bid_min_increment,
+               uint256 time_delay
+               ) public
+         {
+           _init_english_auction (
+                                       "",
+                                       owner_pubkey,
+                                       owner_address,
+                                       root_wallet,
+                                       0,
+                                       time_stop,
+                                       price_start,
+                                       bid_min_increment,
+                                       time_delay,
+                                       address(0)
+                                       ) ;
+         }
+}
+
