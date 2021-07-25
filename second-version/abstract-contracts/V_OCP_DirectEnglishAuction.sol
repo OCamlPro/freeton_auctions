@@ -21,12 +21,12 @@ abstract contract V_OCP_DirectEnglishAuction is V_OCP_EnglishAuction {
       }
   }
 
-  function transfer_funds_to_owner() internal override
+  function _transfer_funds_to_owner() internal override
   {
     send_collected_fund ( g_owner_address );
   }
 
-  function refund_previous_bidder() internal override
+  function _refund_previous_bidder() internal override
   {
     send_collected_fund ( g_bid_sender_wallet );
   }

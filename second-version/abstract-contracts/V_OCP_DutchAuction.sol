@@ -2,7 +2,6 @@ import "V_OCP_Auction.sol";
 
 abstract contract V_OCP_DutchAuction is V_OCP_Auction {
 
-  uint128 g_price_start; // The starting price
   uint128 g_price_stop; // The limit price
 
   function _init_dutch_auction(
@@ -24,9 +23,9 @@ abstract contract V_OCP_DutchAuction is V_OCP_Auction {
                    owner_address,
                    root_wallet,
                    time_stop,
+                   price_start,
                    address(0)
                    ) ;
-    g_price_start = price_start ;
     g_price_stop = price_stop ;
     g_automatic_winner = true ;
   }
@@ -37,6 +36,30 @@ abstract contract V_OCP_DutchAuction is V_OCP_Auction {
   function _is_better_price (uint128 b) internal view returns (bool){
     uint128 current_price = _current_price() ;
     return ( g_price_start >= b && b >= current_price ) ;
+  }
+
+  function transfer_funds_to_owner() internal view
+  {
+
+    if( g_root_wallet.value != 0 ){
+      TvmCell empty;
+      ITONTokenWallet( g_auction_wallet ).
+        transfer (
+                  g_owner_address,
+                  g_final_price,
+                  OCP_Constants.TRANSFER_GRAMS,
+                  address(this),
+                  true,
+                  empty
+                  );
+      ITONTokenWallet( g_auction_wallet ).destroy ( g_owner_address );
+
+    } else {
+      g_owner_address.transfer(
+                               g_final_price +
+                               ( address(this).balance - msg.value )
+                               , false, 0 );
+    }
   }
 
   receive() external
@@ -57,19 +80,17 @@ abstract contract V_OCP_DutchAuction is V_OCP_Auction {
         if( _is_better_price ( proposed_price  ) ){
           g_time_stop = now ;
           g_winner_address = msg.sender ;
-
+          g_bid_sender_wallet = msg.sender ;
+          g_final_price = proposed_price ;
           emit Winner( g_winner_address, g_winner_pubkey );
-          g_owner_address.transfer(
-                                   proposed_price +
-                                   ( address(this).balance - msg.value )
-                                   , false, 0 );
+          transfer_funds_to_owner();
         } else {
           msg.sender.transfer(0, false, 64);
         }
       }
     }
   }
-
+  
   function _tokens_received( uint128 amount,
                              address sender_wallet,
                              uint256 sender_public_key,
@@ -81,18 +102,10 @@ abstract contract V_OCP_DutchAuction is V_OCP_Auction {
       g_time_stop = now ;
       g_winner_address = sender_address ;
       g_winner_pubkey = sender_public_key ;
+      g_bid_sender_wallet = sender_wallet ;
+      g_final_price = amount ;
       emit Winner( g_winner_address, g_winner_pubkey );
-
-      ITONTokenWallet( g_auction_wallet ).
-        transfer (
-                  g_owner_address,
-                  amount,
-                  OCP_Constants.TRANSFER_GRAMS,
-                  address(this),
-                  true,
-                  empty
-                  );
-      ITONTokenWallet( g_auction_wallet ).destroy ( g_owner_address );
+      transfer_funds_to_owner();
     } else {
 
       ITONTokenWallet( g_auction_wallet ).

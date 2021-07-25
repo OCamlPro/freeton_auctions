@@ -5,7 +5,6 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
 
   uint128 constant MINIMAL_FEE = 0.5 ton ;
 
-  uint128 g_price_start ;
   uint8 g_bid_min_increment ;
   uint256 g_time_delay ;
   bool g_need_refund ;
@@ -13,7 +12,6 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
   uint128 g_current_price ;
   uint256 g_bid_sender_pubkey ;
   address g_bid_sender_address ;
-  address g_bid_sender_wallet ;
   uint256 g_time_blind ;
   
   function _init_english_auction(
@@ -38,9 +36,9 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
                    owner_address,
                    root_wallet,
                    time_stop,
+                   price_start,
                    owner_vault
                    ) ;
-    g_price_start = price_start ;
     g_time_delay = time_delay ;
     g_time_max = time_stop ;
     g_current_price = price_start ;
@@ -48,9 +46,9 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
     g_time_blind = time_blind ;
   }
 
+  function _transfer_funds_to_owner() internal virtual ;
 
-  function transfer_funds_to_owner() internal virtual ;
-  function refund_previous_bidder() internal virtual ;
+  function _refund_previous_bidder() internal virtual ;
 
   function commit() public
   {
@@ -61,9 +59,10 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
 
     if( g_need_refund ){
       g_need_refund = false ;
-      g_owner_address = g_bid_sender_address ;
-      g_owner_pubkey = g_bid_sender_pubkey ;
-      transfer_funds_to_owner();
+      g_winner_address = g_bid_sender_address ;
+      g_winner_pubkey = g_bid_sender_pubkey ;
+      g_final_price = g_current_price ;
+      _transfer_funds_to_owner();
       if( g_root_wallet.value != 0 ){
         ITONTokenWallet( g_auction_wallet ).destroy ( g_owner_address );
       }
@@ -80,7 +79,7 @@ abstract contract V_OCP_EnglishAuction is V_OCP_Auction {
                        ) internal
   {
     if( g_need_refund ){
-      refund_previous_bidder ( );
+      _refund_previous_bidder ( );
     }
     g_need_refund = true ;
     g_current_price = proposed_price ;

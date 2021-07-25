@@ -44,6 +44,10 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
   string g_title ;
   string g_description ;
 
+  uint128 g_price_start ;
+  address g_bid_sender_wallet ;
+  uint128 g_final_price ;
+  
   // reverse auctions
   bool g_reverse ;
   address g_root_vault ; // the kind of merchandise being bought
@@ -55,6 +59,7 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
                          address owner_address,
                          address root_wallet,
                          uint256 time_stop,
+                         uint128 price_start,
                          address owner_vault
            ) internal
   {
@@ -84,7 +89,8 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
     g_root_wallet = IRootTokenContract(root_wallet) ;
     g_time_stop = time_stop ;
     g_kind = kind + "auction" ;
-
+    g_price_start = price_start ;
+    
     if ( g_root_wallet.value != 0 ){
 
       IRootTokenContract( g_root_wallet ).

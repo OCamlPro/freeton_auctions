@@ -95,7 +95,7 @@ contract OCP_AuctionBidder is ITokensReceivedCallback {
     tvm.accept() ;
     g_locked = true ;
     I_OCP_ReverseAuction( s_auction ).
-      bid( amount, s_bidder_wallet, tvm.pubkey(), g_bidder_vault );
+      bid( amount, s_bidder_wallet, tvm.pubkey() );
   }
 
   function unbid(  ) public
