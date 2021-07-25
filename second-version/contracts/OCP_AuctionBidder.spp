@@ -122,7 +122,7 @@ contract OCP_AuctionBidder is ITokensReceivedCallback {
     g_bidder_vault_balance = 0;
   }
 
-  function transfer ( address owner_vault ) public
+  function winner ( address owner_vault ) public
   {
     require( msg.sender.value != 0 &&
              msg.sender == s_auction, OCP_Constants.EXN_AUTH_FAILED );

@@ -56,7 +56,7 @@ abstract contract V_OCP_ReverseEnglishAuction is
   {
     TvmCell empty;
     OCP_AuctionBidder( g_bid_sender_contract ).
-      transfer( g_owner_vault );
+      winner( g_owner_vault );
     ITONTokenWallet( g_auction_wallet ).
       transfer(
                g_bid_sender_wallet,
