@@ -1,6 +1,6 @@
 # Free TON On-line Auctions
 
-See the [Submission PDF](submission.pdf) for detailed information.
+See the [Submission PDF](https://github.com/OCamlPro/freeton_auctions/raw/master/submission.pdf) for detailed information.
 
 ## Overview
  	
