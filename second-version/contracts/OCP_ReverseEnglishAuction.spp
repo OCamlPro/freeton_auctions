@@ -3,9 +3,6 @@ import "../abstract-contracts/V_OCP_ReverseEnglishAuction.sol" ;
 contract OCP_ReverseEnglishAuction is
          V_OCP_ReverseEnglishAuction {
 
-    uint256 constant OCP_AuctionBidder_CODEHASH =
-        0x%{get-code-hash:contract:tvc:OCP_AuctionBidder};
-
   constructor (
                uint256 owner_pubkey,
                address owner_address,
@@ -28,8 +25,7 @@ contract OCP_ReverseEnglishAuction is
                                        bid_min_increment,
                                        time_delay,
                                        owner_vault,
-                                       owner_vault_target,
-                                       OCP_AuctionBidder_CODEHASH
+                                       owner_vault_target
                                        ) ;
          }
 

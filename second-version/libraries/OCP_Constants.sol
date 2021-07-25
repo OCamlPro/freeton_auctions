@@ -12,6 +12,7 @@ library OCP_Constants {
   uint8 constant EXN_NOT_ENOUGH_BALANCE  = 108 ;
   uint8 constant EXN_ALREADY_BIDDING     = 109 ;
   uint8 constant EXN_BLIND_AUCTION       = 110 ;
+  uint8 constant EXN_NOT_READY           = 111 ;
   
   uint128 constant MINIMAL_INITIAL_BALANCE = 1 ton ;
   uint128 constant DEPLOY_WALLET_GRAMS = 0.5 ton ;

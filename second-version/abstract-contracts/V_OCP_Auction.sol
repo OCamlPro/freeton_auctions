@@ -167,7 +167,7 @@ abstract contract V_OCP_Auction is ITokensReceivedCallback {
     require( msg.sender.value != 0, OCP_Constants.EXN_AUTH_FAILED );
     require( msg.sender == g_auction_wallet , OCP_Constants.EXN_AUTH_FAILED );
     _tokens_received( amount, sender_wallet,
-                        sender_public_key, sender_address );
+                      sender_public_key, sender_address );
   }
 
   function _only_after_close( ) internal view

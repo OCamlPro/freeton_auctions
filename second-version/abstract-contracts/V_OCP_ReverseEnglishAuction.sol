@@ -5,6 +5,9 @@ import "../contracts/OCP_AuctionBidder.spp" ;
 abstract contract V_OCP_ReverseEnglishAuction is
          I_OCP_ReverseAuction, V_OCP_EnglishAuction {
 
+  uint256 constant OCP_AuctionBidder_CODEHASH =
+    0x%{get-code-hash:contract:tvc:OCP_AuctionBidder};
+  
   uint128 g_auction_wallet_balance ;
   address g_bid_sender_contract ;
   uint256 g_bidder_code_hash;
@@ -22,11 +25,9 @@ abstract contract V_OCP_ReverseEnglishAuction is
                                           uint8 bid_min_increment,
                                           uint256 time_delay,
                                           address owner_vault,
-                                          uint128 bidder_vault_target,
-                                          uint256 bidder_code_hash
+                                          uint128 bidder_vault_target
                ) public
   {
-    require( bidder_code_hash != 0, OCP_Constants.EXN_INVALID_ARGUMENT );
     _init_english_auction( kind + "reverse ",
                            owner_pubkey,
                            owner_address,
@@ -38,7 +39,7 @@ abstract contract V_OCP_ReverseEnglishAuction is
                            time_delay,
                            owner_vault
                    );
-    g_bidder_code_hash = bidder_code_hash ;
+    g_bidder_code_hash = OCP_AuctionBidder_CODEHASH ;
     g_bidder_vault_target = bidder_vault_target ;
   }
 
@@ -90,6 +91,13 @@ abstract contract V_OCP_ReverseEnglishAuction is
     g_auction_wallet_balance += amount ;
   }
 
+  receive() external
+    {
+      if( g_root_wallet.value != 0 ){
+        g_auction_wallet_balance += msg.value;
+      }
+    }
+  
   function _calcBidderAddress(
                               address bidder_wallet,
                               uint256 bidder_pubkey
@@ -108,12 +116,32 @@ abstract contract V_OCP_ReverseEnglishAuction is
     addr = address( tvm.hash( stateInit ) );
   }
 
+  function create_bidder( address bidder_wallet ) public view
+    responsible returns ( address addr )
+  {
+    require( g_auction_wallet_balance >= g_price_start,
+             OCP_Constants.EXN_NOT_READY );
+    require( msg.value > OCP_Constants.MINIMAL_INITIAL_BALANCE );
+    addr = new OCP_AuctionBidder
+      {
+      value: OCP_Constants.MINIMAL_INITIAL_BALANCE ,
+      varInit: {
+        s_bidder_wallet: bidder_wallet,
+        s_auction : address(this)
+      },
+      pubkey: msg.pubkey(),
+      code: g_bidder_code
+      } ( g_root_vault, g_bidder_vault_target );
+  }
+
+  
   function bid( uint128 amount,
                 address bidder_wallet,
                 uint256 bidder_pubkey,
                 address bidder_vault ) public override
   {
-    require( msg.value > OCP_Constants.MINIMAL_FEE, OCP_Constants.EXN_NOT_ENOUGH_VALUE );
+    require( msg.value > OCP_Constants.MINIMAL_FEE,
+             OCP_Constants.EXN_NOT_ENOUGH_VALUE );
     require( g_bidder_code_hash == 0, OCP_Constants.EXN_AUTH_FAILED );
 
     address addr = _calcBidderAddress( bidder_wallet, bidder_pubkey );
