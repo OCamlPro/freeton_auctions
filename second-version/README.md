@@ -23,6 +23,10 @@ The following contracts are implemented in Solidity:
     English auctions. Bidders competes to sell their merchandise at the
     lowest price for the auctioner.
 
+* `contracts/OCP_ReverseAutomaticDutchAuction.spp` : Reverse variant of the
+    Dutch auctions with automatic increase of price over time. Bidders competes
+    to sell their merchandise at the lowest price for the auctioner.
+
 For all of these contracts, both TON Crystal tokens and TIP-3 tokens
 are supported (we used Broxus contracts for interfaces).
 
