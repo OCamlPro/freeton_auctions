@@ -2,40 +2,40 @@ import "../libraries/OCP_Constants.sol" ;
 import "../external-interfaces/ITokensReceivedCallback.sol" ;
 import "../external-interfaces/IRootTokenContract.sol" ;
 import "../external-interfaces/ITONTokenWallet.sol" ;
+import "../interfaces/I_OCP_BlindAuction.sol" ;
+
 
 contract OCP_BlindAuctionBid is ITokensReceivedCallback {
 
   uint256 static s_auction_hash ;
   address static s_bidder_address ;
-  address g_bidder_address ;
-  uint256 g_bidder_pubkey ;
-  uint256 g_last_payment ;
   address g_bid_wallet ;
   uint128 g_bid_wallet_balance ;
   address g_root_wallet ;
+  address g_bidder_wallet ;
+  
+  uint128 g_price_start ;
+  uint64 g_blind_time ; // payments are only possible before this date
+  address g_auction_address ;
+  
   constructor (
-               address bidder_address,
-               uint256 bidder_pubkey,
-               address root_wallet )
+               address root_wallet,
+               address bidder_wallet,
+               uint64 blind_time,
+               uint128 price_start
+               )
     {
       require(
               ( msg.sender.value != 0 && s_bidder_address == msg.sender )
               || ( msg.pubkey() != 0 && msg.pubkey() == tvm.pubkey() ),
               OCP_Constants.EXN_AUTH_FAILED );
       require (
-               s_bidder_address.value != 0 || bidder_address.value != 0,
+               blind_time > now ,
                OCP_Constants.EXN_INVALID_ARGUMENT );
-      if( bidder_address.value == 0 ){
-        g_bidder_address = s_bidder_address ;
-      } else {
-        g_bidder_address = bidder_address ;
-      }
-      if( bidder_pubkey == 0 ){
-        g_bidder_pubkey = tvm.pubkey() ;
-      } else {
-        g_bidder_pubkey = bidder_pubkey ;
-      }
-
+      g_blind_time = blind_time ;
+      g_price_start = price_start ;
+      g_bidder_wallet = bidder_wallet ;
+      
       if( root_wallet.value != 0 ) {
 
         g_root_wallet = root_wallet ;
@@ -60,10 +60,11 @@ contract OCP_BlindAuctionBid is ITokensReceivedCallback {
 
   receive() external
   {
-    if( g_root_wallet.value == 0
-        && msg.sender == g_bidder_address
-        && msg.value > OCP_Constants.MINIMAL_FEE ){
-      g_last_payment = now ;
+    if( g_root_wallet.value == 0 ){
+      require
+        ( now < g_blind_time
+          || g_bid_wallet_balance >= g_price_start
+          , OCP_Constants.EXN_BLIND_AUCTION );
       g_bid_wallet_balance += msg.value - OCP_Constants.MINIMAL_FEE ;
     }
   }
@@ -84,8 +85,8 @@ contract OCP_BlindAuctionBid is ITokensReceivedCallback {
                                   address /*token_wallet*/,
                                   address /*token_root*/,
                                   uint128 amount,
-                                  uint256 sender_public_key,
-                                  address sender_address,
+                                  uint256 /* sender_public_key */,
+                                  address /* sender_address */,
                                   address sender_wallet,
                                   address /*original_gas_to*/,
                                   uint128 /*updated_balance*/,
@@ -94,7 +95,136 @@ contract OCP_BlindAuctionBid is ITokensReceivedCallback {
   {
     require( msg.sender.value != 0
              && msg.sender == g_bid_wallet , OCP_Constants.EXN_AUTH_FAILED );
-    g_last_payment = now ;
+    if( now < g_blind_time
+        || g_bid_wallet_balance >= g_price_start ){
+      g_bid_wallet_balance += amount ;
+    } else {
+      TvmCell empty;
+      ITONTokenWallet( g_bid_wallet ).transfer(
+                            sender_wallet,
+                            amount,
+                            0,
+                            address(this),
+                            true,
+                            empty
+                            );
+    }
   }
 
+  function bid( address auction_address, uint128 amount, uint64 nonce ) public
+    returns ( bool successful )
+  {
+    require(
+            ( msg.sender.value != 0 && msg.sender == s_bidder_address )
+            ||
+            ( msg.pubkey() != 0 && msg.pubkey() == tvm.pubkey() ),
+            OCP_Constants.EXN_AUTH_FAILED );
+    require( now > g_blind_time
+             && g_bid_wallet_balance >= g_price_start
+             && amount >= g_price_start
+             , OCP_Constants.EXN_BLIND_AUCTION );
+    // if now > g_blind_time && g_bid_wallet_balance < g_price_start,
+    // then money is lost !!!
+    tvm.accept();
+
+    if( g_root_wallet.value == 0
+        && msg.value > OCP_Constants.MINIMAL_FEE
+        && g_price_start <= g_bid_wallet_balance
+        ){
+      g_bid_wallet_balance += msg.value - OCP_Constants.MINIMAL_FEE ;
+    }
+
+    if(
+       _calc_blind_hash( auction_address, amount, nonce,
+                         s_bidder_address, tvm.pubkey() )
+       == s_auction_hash
+       ){
+
+      g_auction_address = auction_address ;
+      I_OCP_BlindAuction( auction_address ).
+        bid( amount, g_blind_time, g_price_start, nonce,
+             s_bidder_address, tvm.pubkey() );
+      successful = true ;
+    }
+  }
+
+  function _calc_blind_hash(
+                              address auction_address,
+                              uint128 amount,
+                              uint64 nonce,
+                              address bidder_address,
+                              uint256 bidder_pubkey
+                              ) internal pure
+    returns ( uint256 hash )
+  {
+    TvmBuilder builder;
+    builder.store(
+                  auction_address,
+                  amount,
+                  nonce,
+                  bidder_address,
+                  bidder_pubkey
+                  );
+    hash = tvm.hash( builder.toCell() );
+  }
+
+  function winner( address auctioneer_wallet, uint128 amount ) public view
+  {
+    require( g_auction_address.value != 0 &&
+             g_auction_address == msg.sender, OCP_Constants.EXN_AUTH_FAILED );
+    if( g_root_wallet.value == 0 ){
+
+      auctioneer_wallet.transfer( amount, false, 0 );
+      if( amount < g_bid_wallet_balance ){
+        g_bidder_wallet.transfer( g_bid_wallet_balance - amount, false, 0 );
+      }
+
+    } else {
+      TvmCell empty ;
+      ITONTokenWallet( g_bid_wallet ).
+        transfer(
+                 auctioneer_wallet,
+                 amount,
+                 0,
+                 address(this),
+                 true,
+                 empty
+                 );
+      if( amount < g_bid_wallet_balance ){
+        ITONTokenWallet( g_bid_wallet ).
+          transfer(
+                   g_bidder_wallet,
+                   g_bid_wallet_balance - amount,
+                   0,
+                   address(this),
+                   true,
+                   empty
+                   );
+      }
+    }
+  }
+
+  function unbid() public view
+  {
+    require( g_auction_address.value != 0 &&
+             g_auction_address == msg.sender, OCP_Constants.EXN_AUTH_FAILED );
+    
+    if( g_root_wallet.value == 0 ){
+
+      g_bidder_wallet.transfer( g_bid_wallet_balance - amount, false, 0 );
+
+    } else {
+      ITONTokenWallet( g_bid_wallet ).
+        transfer(
+                 g_bidder_wallet,
+                 g_bid_wallet_balance,
+                 0,
+                 address(this),
+                 true,
+                 empty
+                 );
+    }
+  }
+  
+  
 }
